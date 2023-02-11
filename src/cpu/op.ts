@@ -296,6 +296,36 @@ const aluOpSrl: ALUUnaryOp = (cpu, n) => {
   );
   return result;
 };
+const aluOpBit: ALUUnaryOp = (cpu, n) => {
+  const pc = cpu.registers[REGISTER.PC];
+  const bit = cpu.memory.read(pc + 1);
+  const bitMask = 1 << bit;
+  const result = (bitMask & n) & 0xff;
+  cpu.aluSetFlags(
+    result === 0,
+    false,
+    true,
+    cpu.getFlag(FLAG.C),
+  );
+  cpu.registers[REGISTER.PC] += 1;
+  return n;
+};
+const aluOpSet: ALUUnaryOp = (cpu, n) => {
+  const pc = cpu.registers[REGISTER.PC];
+  const bit = cpu.memory.read(pc + 1);
+  const bitMask = 1 << bit;
+  const result = (bitMask | n) & 0xff;
+  cpu.registers[REGISTER.PC] += 1;
+  return result;
+};
+const aluOpRes: ALUUnaryOp = (cpu, n) => {
+  const pc = cpu.registers[REGISTER.PC];
+  const bit = cpu.memory.read(pc + 1);
+  const bitMask = ~(1 << bit);
+  const result = n & bitMask & 0xff;
+  cpu.registers[REGISTER.PC] += 1;
+  return result;
+};
 
 const add16HLN = (r2: Register): OpExec => (cpu, pc) => {
   const n1 = cpu.readHL();
@@ -404,6 +434,118 @@ const di: OpExec = (cpu) => {
 const ei: OpExec = (cpu) => {
   cpu.isInterruptsEnabledNext = true;
   cpu.registers[REGISTER.PC] += 1;
+};
+
+const jpNN: OpExec = (cpu, pc) => {
+  const nn = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
+  cpu.registers[REGISTER.PC] = nn;
+};
+
+const jpNNCond = (cond: (cpu: CPU) => boolean): OpExec => (cpu, pc) => {
+  if (cond(cpu)) {
+    const nn = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
+    cpu.registers[REGISTER.PC] = nn;
+  } else {
+    cpu.registers[REGISTER.PC] += 1;
+  }
+};
+
+const jpHL: OpExec = (cpu, pc) => {
+  const nn = cpu.readHL();
+  cpu.registers[REGISTER.PC] = nn;
+};
+
+const jrN: OpExec = (cpu, pc) => {
+  let n = cpu.memory.read(pc + 1);
+  if (n & 0x80) {
+    n = -(((~n) + 1) & 0xff);
+  }
+  cpu.registers[REGISTER.PC] += n;
+};
+
+const jrNCond = (cond: (cpu: CPU) => boolean): OpExec => (cpu, pc) => {
+  if (cond(cpu)) {
+    let n = cpu.memory.read(pc + 1);
+    if (n & 0x80) {
+      n = -(((~n) + 1) & 0xff);
+    }
+    cpu.registers[REGISTER.PC] += n;
+  } else {
+    cpu.registers[REGISTER.PC] += 2;
+  }
+};
+
+const callNN: OpExec = (cpu, pc) => {
+  // push
+  const value = pc + 3;
+  const sp = cpu.registers[REGISTER.SP];
+  cpu.memory.write(sp - 1, (value >>> 8) & 0xff);
+  cpu.memory.write(sp - 2, value & 0xff);
+  cpu.registers[REGISTER.SP] -= 2;
+  // jmp
+  const nn = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
+  cpu.registers[REGISTER.PC] = nn;
+};
+
+const callNNCond = (cond: (cpu: CPU) => boolean): OpExec => (cpu, pc) => {
+  if (cond(cpu)) {
+    // push
+    const value = pc + 3;
+    const sp = cpu.registers[REGISTER.SP];
+    cpu.memory.write(sp - 1, (value >>> 8) & 0xff);
+    cpu.memory.write(sp - 2, value & 0xff);
+    cpu.registers[REGISTER.SP] -= 2;
+    // jmp
+    const nn = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
+    cpu.registers[REGISTER.PC] = nn;
+  } else {
+    cpu.registers[REGISTER.PC] += 3;
+  }
+};
+
+const rstN = (n: number): OpExec => (cpu, pc) => {
+  // push
+  const value = pc + 2;
+  const sp = cpu.registers[REGISTER.SP];
+  cpu.memory.write(sp - 1, (value >>> 8) & 0xff);
+  cpu.memory.write(sp - 2, value & 0xff);
+  cpu.registers[REGISTER.SP] -= 2;
+  // jmp
+  cpu.registers[REGISTER.PC] = n;
+};
+
+const ret: OpExec = (cpu, pc) => {
+  // pop
+  const sp = cpu.registers[REGISTER.SP];
+  const value = cpu.memory.read(sp) | (cpu.memory.read(sp + 1) << 8);
+  cpu.registers[REGISTER.SP] += 2;
+  // jmp
+  cpu.registers[REGISTER.PC] = value;
+};
+
+const retCond = (cond: (cpu: CPU) => boolean): OpExec => (cpu, pc) => {
+  if (cond(cpu)) {
+    // pop
+    const sp = cpu.registers[REGISTER.SP];
+    const value = cpu.memory.read(sp) | (cpu.memory.read(sp + 1) << 8);
+    cpu.registers[REGISTER.SP] += 2;
+    // jmp
+    cpu.registers[REGISTER.PC] = value;
+  } else {
+    cpu.registers[REGISTER.PC] += 1;
+  }
+};
+
+const reti: OpExec = (cpu, pc) => {
+  // pop
+  const sp = cpu.registers[REGISTER.SP];
+  const value = cpu.memory.read(sp) | (cpu.memory.read(sp + 1) << 8);
+  cpu.registers[REGISTER.SP] += 2;
+  // jmp
+  cpu.registers[REGISTER.PC] = value;
+  // enable interrupts
+  cpu.isInterruptsEnabled = true;
+  cpu.isInterruptsEnabledNext = true;
 };
 
 function setupInstructions() {
