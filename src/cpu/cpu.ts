@@ -1,10 +1,6 @@
+import { Memory } from '../memory/types';
 import { FLAG, REGISTER } from './constants';
 import { main_opcodes } from './ops/opcode';
-
-interface Memory {
-  read(pos: number): number;
-  write(pos: number, value: number): void;
-}
 
 export class CPU {
   registers: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
