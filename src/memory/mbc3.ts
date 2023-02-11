@@ -1,4 +1,4 @@
-import { Memory } from "./types";
+import { Memory } from './types';
 
 export class MBC3 implements Memory {
   rom: Uint8Array;

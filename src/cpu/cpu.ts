@@ -40,6 +40,22 @@ export class CPU {
     this.registers[REGISTER.PC] = (pc + bytes) & 0xffff;
   }
 
+  jump(addr: number): void {
+    this.registers[REGISTER.PC] = addr & 0xffff;
+  }
+
+  enterInterrupt(): void {
+    // Reset IME Flag
+    this.isInterruptsEnabled = false;
+    this.isInterruptsEnabledNext = false;
+    // Push PC
+    const value = this.registers[REGISTER.PC] + 3;
+    const sp = this.registers[REGISTER.SP];
+    this.memory.write(sp - 1, (value >>> 8) & 0xff);
+    this.memory.write(sp - 2, value & 0xff);
+    this.registers[REGISTER.SP] -= 2;
+  }
+
   step(): void {
     const pc = this.registers[REGISTER.PC];
     const opcode = this.memory.read(pc);
