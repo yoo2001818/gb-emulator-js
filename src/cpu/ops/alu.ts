@@ -80,8 +80,8 @@ export const binary_ops = [
   alu_sub,
   alu_sbc,
   alu_and,
-  alu_or,
   alu_xor,
+  alu_or,
   alu_cp,
 ];
 
@@ -92,6 +92,7 @@ export const alu_binary =
     const n2 = r2.read(cpu);
     cpu.registers[REGISTER.A] = op(cpu, n1, n2);
     cpu.skip(1);
+    cpu.clocks += 4 + r2.clocks;
   };
 
 export const alu_binary_imm =
@@ -109,6 +110,8 @@ export const alu_unary =
     const n = r.read(cpu);
     r.write(cpu, op(cpu, n));
     cpu.skip(1);
+    // FIXME: RLCA, RRCA, RLA, RRA has 4 clocks only
+    cpu.clocks += 8 + r.clocks;
   };
 
 export const alu_inc: ALUUnaryOp = (cpu, n) => {

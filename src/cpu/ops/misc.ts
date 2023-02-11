@@ -3,6 +3,7 @@ import { FLAG, REGISTER } from '../constants';
 import { Register16Description } from './register';
 
 export const nop: OpExec = (cpu) => {
+  cpu.clocks += 4;
   cpu.skip(1);
 };
 
@@ -16,6 +17,7 @@ export const push =
     cpu.registers[REGISTER.SP] -= 2;
     cpu.skip(1);
     r.postCallback(cpu);
+    cpu.clocks += 16;
   };
 
 export const pop =
@@ -27,6 +29,7 @@ export const pop =
     cpu.registers[REGISTER.SP] += 2;
     cpu.skip(1);
     r.postCallback(cpu);
+    cpu.clocks += 12;
   };
 
 export const add16 =
@@ -45,6 +48,7 @@ export const add16 =
     cpu.skip(1);
     r1.postCallback(cpu);
     r2.postCallback(cpu);
+    cpu.clocks += 8;
   };
 
 export const add16_sp_n: OpExec = (cpu, pc) => {
@@ -53,6 +57,7 @@ export const add16_sp_n: OpExec = (cpu, pc) => {
   const result = n1 + n2;
   cpu.registers[REGISTER.SP] = result & 0xffff;
   cpu.skip(2);
+  cpu.clocks += 16;
 };
 
 export const inc16 =
@@ -63,6 +68,7 @@ export const inc16 =
     r.write(cpu, result & 0xffff);
     cpu.skip(1);
     r.postCallback(cpu);
+    cpu.clocks += 8;
   };
 
 export const dec16 =
@@ -73,6 +79,7 @@ export const dec16 =
     r.write(cpu, result & 0xffff);
     cpu.skip(1);
     r.postCallback(cpu);
+    cpu.clocks += 8;
   };
 
 export const daa: OpExec = (cpu) => {
@@ -88,6 +95,7 @@ export const daa: OpExec = (cpu) => {
   cpu.aluSetFlags((value & 0xff) === 0, cpu.getFlag(FLAG.N), false, carry);
   cpu.registers[REGISTER.A] = value & 0xff;
   cpu.skip(1);
+  cpu.clocks += 4;
 };
 
 export const cpl: OpExec = (cpu) => {
@@ -95,35 +103,42 @@ export const cpl: OpExec = (cpu) => {
   cpu.aluSetFlags(cpu.getFlag(FLAG.Z), false, false, cpu.getFlag(FLAG.C));
   cpu.registers[REGISTER.A] = result;
   cpu.skip(1);
+  cpu.clocks += 4;
 };
 
 export const ccf: OpExec = (cpu) => {
   cpu.aluSetFlags(cpu.getFlag(FLAG.Z), false, false, !cpu.getFlag(FLAG.C));
   cpu.skip(1);
+  cpu.clocks += 4;
 };
 
 export const scf: OpExec = (cpu) => {
   cpu.aluSetFlags(cpu.getFlag(FLAG.Z), false, false, true);
   cpu.skip(1);
+  cpu.clocks += 4;
 };
 
 export const halt: OpExec = (cpu) => {
   cpu.isRunning = false;
   cpu.skip(1);
+  cpu.clocks += 4;
 };
 
 export const stop: OpExec = (cpu) => {
   // TODO: Wait for button press
   cpu.isRunning = false;
   cpu.skip(2);
+  cpu.clocks += 4;
 };
 
 export const di: OpExec = (cpu) => {
   cpu.isInterruptsEnabledNext = false;
   cpu.skip(1);
+  cpu.clocks += 4;
 };
 
 export const ei: OpExec = (cpu) => {
   cpu.isInterruptsEnabledNext = true;
   cpu.skip(1);
+  cpu.clocks += 4;
 };

@@ -8,6 +8,7 @@ export const ld =
     const value = r2.read(cpu);
     r1.write(cpu, value);
     cpu.skip(1);
+    cpu.clocks += r1.clocks + r2.clocks + 4;
   };
 
 export const ld_r_d8 =
@@ -16,6 +17,7 @@ export const ld_r_d8 =
     const value = cpu.memory.read(pc + 1);
     r.write(cpu, value);
     cpu.skip(2);
+    cpu.clocks += r.clocks + 8;
   };
 
 export const ld_a_a16: OpExec = (cpu, pc) => {
@@ -23,12 +25,14 @@ export const ld_a_a16: OpExec = (cpu, pc) => {
   const nn = cpu.memory.read(addr);
   cpu.registers[REGISTER.A] = nn;
   cpu.skip(3);
+  cpu.clocks += 16;
 };
 
 export const ld_a16_a: OpExec = (cpu, pc) => {
   const addr = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
   cpu.memory.write(addr, cpu.registers[REGISTER.A]);
   cpu.skip(3);
+  cpu.clocks += 16;
 };
 
 export const ld_a_c: OpExec = (cpu) => {
@@ -36,12 +40,14 @@ export const ld_a_c: OpExec = (cpu) => {
   const nn = cpu.memory.read(addr);
   cpu.registers[REGISTER.A] = nn;
   cpu.skip(1);
+  cpu.clocks += 8;
 };
 
 export const ld_c_a: OpExec = (cpu) => {
   const addr = (0xff00 + cpu.registers[REGISTER.C]) & 0xffff;
   cpu.memory.write(addr, cpu.registers[REGISTER.A]);
   cpu.skip(1);
+  cpu.clocks += 8;
 };
 
 export const ld_a_r16 =
@@ -52,6 +58,7 @@ export const ld_a_r16 =
     cpu.registers[REGISTER.A] = nn;
     cpu.skip(1);
     r2.postCallback(cpu);
+    cpu.clocks += 8;
   };
 
 export const ld_r16_a =
@@ -61,12 +68,14 @@ export const ld_r16_a =
     cpu.memory.write(addr, cpu.registers[REGISTER.A]);
     cpu.skip(1);
     r1.postCallback(cpu);
+    cpu.clocks += 8;
   };
 
 export const ldh_a8_a: OpExec = (cpu, pc) => {
   const addr = (0xff00 + cpu.memory.read(pc + 1)) & 0xffff;
   cpu.memory.write(addr, cpu.registers[REGISTER.A]);
   cpu.skip(2);
+  cpu.clocks += 12;
 };
 
 export const ldh_a_a8: OpExec = (cpu, pc) => {
@@ -74,6 +83,7 @@ export const ldh_a_a8: OpExec = (cpu, pc) => {
   const nn = cpu.memory.read(addr);
   cpu.registers[REGISTER.A] = nn;
   cpu.skip(2);
+  cpu.clocks += 12;
 };
 
 export const ld16_r_d16 =
@@ -83,6 +93,7 @@ export const ld16_r_d16 =
     r.write(cpu, nn);
     cpu.skip(3);
     r.postCallback(cpu);
+    cpu.clocks += 12;
   };
 
 export const ld16_a16_sp: OpExec = (cpu, pc) => {
@@ -91,15 +102,18 @@ export const ld16_a16_sp: OpExec = (cpu, pc) => {
   cpu.memory.write(addr, value & 0xff);
   cpu.memory.write(addr + 1, (value << 8) & 0xff);
   cpu.skip(3);
+  cpu.clocks += 20;
 };
 
 export const ld16_sp_hl: OpExec = (cpu) => {
   cpu.registers[REGISTER.SP] = cpu.readHL();
-  cpu.registers[REGISTER.PC] += 1;
+  cpu.skip(1);
+  cpu.clocks += 8;
 };
 
 export const ld16_hl_spr8: OpExec = (cpu, pc) => {
   const nn = cpu.registers[REGISTER.SP] + cpu.memory.read(pc + 1);
   cpu.writeHL(nn);
-  cpu.registers[REGISTER.PC] += 2;
+  cpu.skip(2);
+  cpu.clocks += 12;
 };

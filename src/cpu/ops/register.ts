@@ -4,6 +4,7 @@ import { REGISTER, Register } from '../constants';
 export interface Register8Description {
   read(cpu: CPU): number;
   write(cpu: CPU, value: number): void;
+  clocks: number;
 }
 
 export const r8_simple = (register_id: Register): Register8Description => ({
@@ -11,11 +12,13 @@ export const r8_simple = (register_id: Register): Register8Description => ({
   write: (cpu, value) => {
     cpu.registers[register_id] = value;
   },
+  clocks: 0,
 });
 
 export const r8_hl: Register8Description = {
   read: (cpu) => cpu.memory.read(cpu.readHL()),
   write: (cpu, value) => cpu.memory.write(cpu.readHL(), value),
+  clocks: 4,
 };
 
 export const r8_a = r8_simple(REGISTER.A);
