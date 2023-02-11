@@ -1,5 +1,5 @@
 import { CPU } from './cpu';
-import { FLAG, REGISTER, Register } from './register';
+import { FLAG, REGISTER, Register, REGISTER_16 } from './register';
 
 export interface OpExec {
   (cpu: CPU, pc: number): void;
@@ -111,6 +111,13 @@ const ldhAN: OpExec = (cpu, pc) => {
 const ld16nn = (n: Register): OpExec => (cpu, pc) => {
   const nn = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
   cpu.writeRegister16(n, nn);
+  cpu.registers[REGISTER.PC] += 3;
+};
+const ld16AddrSP: OpExec = (cpu, pc) => {
+  const addr = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
+  const value = cpu.registers[REGISTER.SP];
+  cpu.memory.write(addr, value & 0xff);
+  cpu.memory.write(addr + 1, (value << 8) & 0xff);
   cpu.registers[REGISTER.PC] += 3;
 };
 const ld16SPHL: OpExec = (cpu) => {
@@ -423,7 +430,7 @@ const halt: OpExec = (cpu) => {
 const stop: OpExec = (cpu) => {
   // TODO: Wait for button press
   cpu.isRunning = false;
-  cpu.registers[REGISTER.PC] += 1;
+  cpu.registers[REGISTER.PC] += 2;
 };
 
 const di: OpExec = (cpu) => {
@@ -548,7 +555,47 @@ const reti: OpExec = (cpu, pc) => {
   cpu.isInterruptsEnabledNext = true;
 };
 
+const condNZ = (cpu: CPU): boolean => !cpu.getFlag(FLAG.Z);
+const condZ = (cpu: CPU): boolean => cpu.getFlag(FLAG.Z);
+const condNC = (cpu: CPU): boolean => !cpu.getFlag(FLAG.C);
+const condC = (cpu: CPU): boolean => cpu.getFlag(FLAG.C);
+
 function setupInstructions() {
-  INSTRUCTIONS[0] = nop
+  INSTRUCTIONS[0x00] = nop;
+  INSTRUCTIONS[0x01] = ld16nn(REGISTER_16.BC);
+  INSTRUCTIONS[0x02] = ld8ToIndirect(REGISTER_16.BC, REGISTER.A);
+  INSTRUCTIONS[0x03] = inc16(REGISTER_16.BC);
+  INSTRUCTIONS[0x04] = aluUnaryN(aluOpInc, REGISTER.B);
+  INSTRUCTIONS[0x05] = aluUnaryN(aluOpDec, REGISTER.B);
+  INSTRUCTIONS[0x06] = ld8nn(REGISTER.B);
+  INSTRUCTIONS[0x07] = aluUnaryN(aluOpRlc, REGISTER.A);
+
+  INSTRUCTIONS[0x08] = ld16AddrSP;
+  INSTRUCTIONS[0x09] = add16HLN(REGISTER_16.BC);
+  INSTRUCTIONS[0x0a] = ld8FromIndirect(REGISTER.A, REGISTER_16.BC);
+  INSTRUCTIONS[0x0b] = dec16(REGISTER_16.BC);
+  INSTRUCTIONS[0x0c] = aluUnaryN(aluOpInc, REGISTER.C);
+  INSTRUCTIONS[0x0d] = aluUnaryN(aluOpDec, REGISTER.C);
+  INSTRUCTIONS[0x0e] = ld8nn(REGISTER.C);
+  INSTRUCTIONS[0x0f] = aluUnaryN(aluOpRrc, REGISTER.A);
+
+  INSTRUCTIONS[0x10] = stop;
+  INSTRUCTIONS[0x11] = ld16nn(REGISTER_16.DE);
+  INSTRUCTIONS[0x12] = ld8ToIndirect(REGISTER_16.DE, REGISTER.A);
+  INSTRUCTIONS[0x13] = inc16(REGISTER_16.DE);
+  INSTRUCTIONS[0x14] = aluUnaryN(aluOpInc, REGISTER.D);
+  INSTRUCTIONS[0x15] = aluUnaryN(aluOpDec, REGISTER.D);
+  INSTRUCTIONS[0x16] = ld8nn(REGISTER.D);
+  INSTRUCTIONS[0x17] = aluUnaryN(aluOpRl, REGISTER.A);
+
+  INSTRUCTIONS[0x18] = jrN;
+  INSTRUCTIONS[0x19] = add16HLN(REGISTER_16.DE);
+  INSTRUCTIONS[0x1a] = ld8FromIndirect(REGISTER.A, REGISTER_16.DE);
+  INSTRUCTIONS[0x1b] = dec16(REGISTER_16.DE);
+  INSTRUCTIONS[0x1c] = aluUnaryN(aluOpInc, REGISTER.E);
+  INSTRUCTIONS[0x1d] = aluUnaryN(aluOpDec, REGISTER.E);
+  INSTRUCTIONS[0x1e] = ld8nn(REGISTER.E);
+  INSTRUCTIONS[0x1f] = aluUnaryN(aluOpRr, REGISTER.A);
+
 }
 setupInstructions();
