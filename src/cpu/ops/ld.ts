@@ -1,18 +1,22 @@
-import { OpExec } from '../op';
+import { OpExec } from './types';
 import { REGISTER } from '../register';
 import { Register16Description, Register8Description } from './register';
 
-export const ld = (r1: Register8Description, r2: Register8Description): OpExec => (cpu) => {
-  const value = r2.read(cpu);
-  r1.write(cpu, value);
-  cpu.skip(1);
-};
+export const ld =
+  (r1: Register8Description, r2: Register8Description): OpExec =>
+  (cpu) => {
+    const value = r2.read(cpu);
+    r1.write(cpu, value);
+    cpu.skip(1);
+  };
 
-export const ld_r_d8 = (r: Register8Description): OpExec => (cpu, pc) => {
-  const value = cpu.memory.read(pc + 1);
-  r.write(cpu, value);
-  cpu.skip(2);
-};
+export const ld_r_d8 =
+  (r: Register8Description): OpExec =>
+  (cpu, pc) => {
+    const value = cpu.memory.read(pc + 1);
+    r.write(cpu, value);
+    cpu.skip(2);
+  };
 
 export const ld_a_a16: OpExec = (cpu, pc) => {
   const addr = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
@@ -40,20 +44,24 @@ export const ld_c_a: OpExec = (cpu) => {
   cpu.skip(1);
 };
 
-export const ld_a_r16 = (r2: Register16Description): OpExec => (cpu) => {
-  const addr = r2.read(cpu);
-  const nn = cpu.memory.read(addr);
-  cpu.registers[REGISTER.A] = nn;
-  cpu.skip(1);
-  r2.postCallback(cpu);
-};
+export const ld_a_r16 =
+  (r2: Register16Description): OpExec =>
+  (cpu) => {
+    const addr = r2.read(cpu);
+    const nn = cpu.memory.read(addr);
+    cpu.registers[REGISTER.A] = nn;
+    cpu.skip(1);
+    r2.postCallback(cpu);
+  };
 
-export const ld_r16_a = (r1: Register16Description): OpExec => (cpu) => {
-  const addr = r1.read(cpu);
-  cpu.memory.write(addr, cpu.registers[REGISTER.A]);
-  cpu.skip(1);
-  r1.postCallback(cpu);
-};
+export const ld_r16_a =
+  (r1: Register16Description): OpExec =>
+  (cpu) => {
+    const addr = r1.read(cpu);
+    cpu.memory.write(addr, cpu.registers[REGISTER.A]);
+    cpu.skip(1);
+    r1.postCallback(cpu);
+  };
 
 export const ldh_a8_a: OpExec = (cpu, pc) => {
   const addr = (0xff00 + cpu.memory.read(pc + 1)) & 0xffff;
@@ -68,12 +76,14 @@ export const ldh_a_a8: OpExec = (cpu, pc) => {
   cpu.skip(2);
 };
 
-export const ld16_r_d16 = (r: Register16Description): OpExec => (cpu, pc) => {
-  const nn = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
-  r.write(cpu, nn);
-  cpu.skip(3);
-  r.postCallback(cpu);
-};
+export const ld16_r_d16 =
+  (r: Register16Description): OpExec =>
+  (cpu, pc) => {
+    const nn = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
+    r.write(cpu, nn);
+    cpu.skip(3);
+    r.postCallback(cpu);
+  };
 
 export const ld16_a16_sp: OpExec = (cpu, pc) => {
   const addr = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);

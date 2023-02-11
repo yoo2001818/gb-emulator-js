@@ -27,7 +27,7 @@ export const FLAG = {
   C: 4,
   N: 6,
   H: 5,
-  Z: 7, 
+  Z: 7,
 };
 
 export type Register = number;

@@ -1,17 +1,25 @@
 export function generateLUTSingle<T>(
   pattern: string,
   generator: (vars: Record<string, number>) => T,
-  output: T[] = [],
+  output: T[] = []
 ): T[] {
   // Pattern is something like "01aaabbb"
   // 0 / 1 is constraints, and "a", "b" is variables
   // We'll simply use recursion to implement this
   const letters = pattern.split('');
-  function visit(index: number, prev: number, prevVar: number, vars: Record<string, number>): void {
+  function visit(
+    index: number,
+    prev: number,
+    prevVar: number,
+    vars: Record<string, number>
+  ): void {
     const letter = letters[index];
     let currentVars = vars;
     let currentPrevVar = prevVar;
-    if (index === letters.length || (index > 0 && letters[index - 1] !== letter)) {
+    if (
+      index === letters.length ||
+      (index > 0 && letters[index - 1] !== letter)
+    ) {
       const prevLetter = letters[index - 1];
       if (prevLetter !== '1' && prevLetter !== '0') {
         currentVars = { ...vars, [prevLetter]: prevVar };
@@ -40,7 +48,7 @@ export function generateLUTSingle<T>(
 
 export function generateLUTRules<T>(
   size: number,
-  patterns: [string, (vars: Record<string, number>) => T][],
+  patterns: [string, (vars: Record<string, number>) => T][]
 ): T[] {
   const output: T[] = new Array(size);
   patterns.forEach(([pattern, generator]) => {

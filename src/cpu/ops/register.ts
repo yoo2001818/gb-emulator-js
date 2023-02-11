@@ -59,7 +59,7 @@ export const r16_hl_dec: Register16Description = {
   postCallback: (cpu) => {
     cpu.writeHL((cpu.readHL() - 1) & 0xffff);
   },
-}
+};
 
 export const r16s_1: Register16Description[] = [
   r16_simple(REGISTER_16.BC),

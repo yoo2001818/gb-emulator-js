@@ -26,4 +26,3 @@ describe('generateLUTRules', () => {
     expect(result[0x08]).toBe(9999);
   });
 });
-

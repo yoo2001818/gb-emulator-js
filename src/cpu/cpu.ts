@@ -17,7 +17,7 @@ export class CPU {
   }
 
   readAF(): number {
-    return this.registers[REGISTER.A] << 8 + this.registers[REGISTER.F];
+    return this.registers[REGISTER.A] << (8 + this.registers[REGISTER.F]);
   }
 
   writeAF(value: number): void {
@@ -26,16 +26,16 @@ export class CPU {
   }
 
   readBC(): number {
-    return this.registers[REGISTER.B] << 8 + this.registers[REGISTER.C];
+    return this.registers[REGISTER.B] << (8 + this.registers[REGISTER.C]);
   }
-  
+
   writeBC(value: number): void {
     this.registers[REGISTER.B] = (value >>> 8) & 0xff;
     this.registers[REGISTER.C] = value & 0xff;
   }
 
   readDE(): number {
-    return this.registers[REGISTER.D] << 8 + this.registers[REGISTER.E];
+    return this.registers[REGISTER.D] << (8 + this.registers[REGISTER.E]);
   }
 
   writeDE(value: number): void {
@@ -44,7 +44,7 @@ export class CPU {
   }
 
   readHL(): number {
-    return this.registers[REGISTER.H] << 8 + this.registers[REGISTER.L];
+    return this.registers[REGISTER.H] << (8 + this.registers[REGISTER.L]);
   }
 
   writeHL(value: number): void {
@@ -92,7 +92,7 @@ export class CPU {
   }
 
   getFlag(flag: number): boolean {
-    return (this.registers[REGISTER.F] << flag) !== 0;
+    return this.registers[REGISTER.F] << flag !== 0;
   }
 
   aluSetFlags(z: boolean, n: boolean, h: boolean, c: boolean): void {
@@ -110,7 +110,7 @@ export class CPU {
       (result & 0xff) === 0,
       false,
       (result & 0x10) !== 0,
-      (result & 0x100) !== 0,
+      (result & 0x100) !== 0
     );
     return result & 0xff;
   }
@@ -122,7 +122,7 @@ export class CPU {
       (result & 0xff) === 0,
       false,
       (result & 0x10) !== 0,
-      (result & 0x100) !== 0,
+      (result & 0x100) !== 0
     );
     return result & 0xff;
   }
@@ -133,7 +133,7 @@ export class CPU {
       (result & 0xff) === 0,
       true,
       (result & 0x10) !== 0,
-      (result & 0x100) !== 0,
+      (result & 0x100) !== 0
     );
     return result & 0xff;
   }
@@ -145,41 +145,26 @@ export class CPU {
       (result & 0xff) === 0,
       false,
       (result & 0x10) !== 0,
-      (result & 0x100) !== 0,
+      (result & 0x100) !== 0
     );
     return result & 0xff;
   }
 
   aluAnd(a: number, b: number): number {
     const result = a & b;
-    this.aluSetFlags(
-      (result & 0xff) === 0,
-      false,
-      true, 
-      false,
-    );
+    this.aluSetFlags((result & 0xff) === 0, false, true, false);
     return result & 0xff;
   }
 
   aluOr(a: number, b: number): number {
     const result = a | b;
-    this.aluSetFlags(
-      (result & 0xff) === 0,
-      false,
-      false, 
-      false,
-    );
+    this.aluSetFlags((result & 0xff) === 0, false, false, false);
     return result & 0xff;
   }
 
   aluXor(a: number, b: number): number {
     const result = a ^ b;
-    this.aluSetFlags(
-      (result & 0xff) === 0,
-      false,
-      false, 
-      false,
-    );
+    this.aluSetFlags((result & 0xff) === 0, false, false, false);
     return result & 0xff;
   }
 
@@ -189,7 +174,7 @@ export class CPU {
       (result & 0xff) === 0,
       true,
       (result & 0x10) !== 0,
-      (result & 0x100) !== 0,
+      (result & 0x100) !== 0
     );
     return a;
   }
@@ -240,22 +225,22 @@ export class CPU {
           case 0x9:
             // ADD HL, n
             break;
-          case 0xA:
+          case 0xa:
             // LD nn, A
             break;
-          case 0xB:
+          case 0xb:
             // DEC n
             break;
-          case 0xC:
+          case 0xc:
             // INC n
             break;
-          case 0xD:
+          case 0xd:
             // DEC n
             break;
-          case 0xE:
+          case 0xe:
             // LD n, nn
             break;
-          case 0xF:
+          case 0xf:
             // Miscallenous
             break;
         }
@@ -320,22 +305,22 @@ export class CPU {
           case 0x9:
             // ADD HL, n
             break;
-          case 0xA:
+          case 0xa:
             // LD nn, A
             break;
-          case 0xB:
+          case 0xb:
             // DEC n
             break;
-          case 0xC:
+          case 0xc:
             // INC n
             break;
-          case 0xD:
+          case 0xd:
             // DEC n
             break;
-          case 0xE:
+          case 0xe:
             // LD n, nn
             break;
-          case 0xF:
+          case 0xf:
             // Miscallenous
             break;
         }

@@ -1,5 +1,5 @@
 import { CPU } from '../cpu';
-import { OpExec } from '../op';
+import { OpExec } from './type';
 import { FLAG, REGISTER } from '../register';
 import { Register8Description } from './register';
 
@@ -26,25 +26,31 @@ export const binary_ops = [
   alu_cp,
 ];
 
-export const alu_binary = (op: ALUBinaryOp, r2: Register8Description): OpExec => (cpu) => {
-  const n1 = cpu.registers[REGISTER.A];
-  const n2 = r2.read(cpu);
-  cpu.registers[REGISTER.A] = op(cpu, n1, n2);
-  cpu.skip(1);
-};
+export const alu_binary =
+  (op: ALUBinaryOp, r2: Register8Description): OpExec =>
+  (cpu) => {
+    const n1 = cpu.registers[REGISTER.A];
+    const n2 = r2.read(cpu);
+    cpu.registers[REGISTER.A] = op(cpu, n1, n2);
+    cpu.skip(1);
+  };
 
-export const alu_binary_imm = (op: ALUBinaryOp): OpExec => (cpu, pc) => {
-  const n1 = cpu.registers[REGISTER.A];
-  const n2 = cpu.memory.read(pc + 1);
-  cpu.registers[REGISTER.A] = op(cpu, n1, n2);
-  cpu.skip(2);
-};
+export const alu_binary_imm =
+  (op: ALUBinaryOp): OpExec =>
+  (cpu, pc) => {
+    const n1 = cpu.registers[REGISTER.A];
+    const n2 = cpu.memory.read(pc + 1);
+    cpu.registers[REGISTER.A] = op(cpu, n1, n2);
+    cpu.skip(2);
+  };
 
-export const alu_unary = (op: ALUUnaryOp, r: Register8Description): OpExec => (cpu) => {
-  const n = r.read(cpu);
-  r.write(cpu, op(cpu, n));
-  cpu.skip(1);
-};
+export const alu_unary =
+  (op: ALUUnaryOp, r: Register8Description): OpExec =>
+  (cpu) => {
+    const n = r.read(cpu);
+    r.write(cpu, op(cpu, n));
+    cpu.skip(1);
+  };
 
 export const alu_inc: ALUUnaryOp = (cpu, n) => {
   const result = n + 1;
@@ -52,7 +58,7 @@ export const alu_inc: ALUUnaryOp = (cpu, n) => {
     (result & 0xff) === 0,
     false,
     (result & 0x10) !== 0,
-    cpu.getFlag(FLAG.C),
+    cpu.getFlag(FLAG.C)
   );
   return result & 0xff;
 };
@@ -62,29 +68,19 @@ export const alu_dec: ALUUnaryOp = (cpu, n) => {
     (result & 0xff) === 0,
     false,
     (result & 0x10) !== 0,
-    cpu.getFlag(FLAG.C),
+    cpu.getFlag(FLAG.C)
   );
   return result & 0xff;
 };
 export const alu_swap: ALUUnaryOp = (cpu, n) => {
   const result = ((n & 0xf) << 4) | ((n >>> 4) & 0xf);
-  cpu.aluSetFlags(
-    (result & 0xff) === 0,
-    false,
-    false,
-    false,
-  );
+  cpu.aluSetFlags((result & 0xff) === 0, false, false, false);
   return result & 0xff;
 };
 export const alu_rlc: ALUUnaryOp = (cpu, n) => {
   const oldBit = n & 0x80;
   const result = ((n << 1) & 0xff) | (oldBit >>> 7);
-  cpu.aluSetFlags(
-    result === 0,
-    false,
-    false,
-    oldBit !== 0,
-  );
+  cpu.aluSetFlags(result === 0, false, false, oldBit !== 0);
   return result;
 };
 export const alu_rl: ALUUnaryOp = (cpu, n) => {
@@ -92,23 +88,13 @@ export const alu_rl: ALUUnaryOp = (cpu, n) => {
 
   const oldBit = n & 0x80;
   const result = ((n << 1) & 0xff) | carry;
-  cpu.aluSetFlags(
-    result === 0,
-    false,
-    false,
-    oldBit !== 0,
-  );
+  cpu.aluSetFlags(result === 0, false, false, oldBit !== 0);
   return result;
 };
 export const alu_rrc: ALUUnaryOp = (cpu, n) => {
   const oldBit = n & 0x01;
   const result = ((n >>> 1) & 0xff) | (oldBit << 7);
-  cpu.aluSetFlags(
-    result === 0,
-    false,
-    false,
-    oldBit !== 0,
-  );
+  cpu.aluSetFlags(result === 0, false, false, oldBit !== 0);
   return result;
 };
 export const alu_rr: ALUUnaryOp = (cpu, n) => {
@@ -116,68 +102,49 @@ export const alu_rr: ALUUnaryOp = (cpu, n) => {
 
   const oldBit = n & 0x01;
   const result = ((n >>> 1) & 0xff) | (carry << 7);
-  cpu.aluSetFlags(
-    result === 0,
-    false,
-    false,
-    oldBit !== 0,
-  );
+  cpu.aluSetFlags(result === 0, false, false, oldBit !== 0);
   return result;
 };
 export const alu_sla: ALUUnaryOp = (cpu, n) => {
   const oldBit = n & 0x80;
   const result = (n << 1) & 0xff;
-  cpu.aluSetFlags(
-    result === 0,
-    false,
-    false,
-    oldBit !== 0,
-  );
+  cpu.aluSetFlags(result === 0, false, false, oldBit !== 0);
   return result;
 };
 export const alu_sra: ALUUnaryOp = (cpu, n) => {
   const oldBit = n & 0x01;
   const result = ((n >>> 1) & 0xff) | (n & 0x80);
-  cpu.aluSetFlags(
-    result === 0,
-    false,
-    false,
-    oldBit !== 0,
-  );
+  cpu.aluSetFlags(result === 0, false, false, oldBit !== 0);
   return result;
 };
 export const alu_srl: ALUUnaryOp = (cpu, n) => {
   const oldBit = n & 0x01;
   const result = (n >>> 1) & 0xff;
-  cpu.aluSetFlags(
-    result === 0,
-    false,
-    false,
-    oldBit !== 0,
-  );
+  cpu.aluSetFlags(result === 0, false, false, oldBit !== 0);
   return result;
 };
-export const alu_bit = (bit: number): ALUUnaryOp => (cpu, n) => {
-  const bitMask = 1 << bit;
-  const result = (bitMask & n) & 0xff;
-  cpu.aluSetFlags(
-    result === 0,
-    false,
-    true,
-    cpu.getFlag(FLAG.C),
-  );
-  return n;
-};
-export const alu_set = (bit: number): ALUUnaryOp => (cpu, n) => {
-  const bitMask = 1 << bit;
-  const result = (bitMask | n) & 0xff;
-  return result;
-};
-export const alu_res = (bit: number): ALUUnaryOp => (cpu, n) => {
-  const bitMask = ~(1 << bit);
-  const result = n & bitMask & 0xff;
-  return result;
-};
+export const alu_bit =
+  (bit: number): ALUUnaryOp =>
+  (cpu, n) => {
+    const bitMask = 1 << bit;
+    const result = bitMask & n & 0xff;
+    cpu.aluSetFlags(result === 0, false, true, cpu.getFlag(FLAG.C));
+    return n;
+  };
+export const alu_set =
+  (bit: number): ALUUnaryOp =>
+  (cpu, n) => {
+    const bitMask = 1 << bit;
+    const result = (bitMask | n) & 0xff;
+    return result;
+  };
+export const alu_res =
+  (bit: number): ALUUnaryOp =>
+  (cpu, n) => {
+    const bitMask = ~(1 << bit);
+    const result = n & bitMask & 0xff;
+    return result;
+  };
 
 export const unary_ops = [
   alu_rlc,
