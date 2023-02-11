@@ -194,6 +194,11 @@ export class CPU {
     return a;
   }
 
+  skip(bytes: number): void {
+    const pc = this.registers[REGISTER.PC];
+    this.registers[REGISTER.PC] = (pc + bytes) & 0xffff;
+  }
+
   step() {
     const iByte = this.memory.read(this.registers[REGISTER.PC]);
     const iUpper = (iByte >>> 4) & 0xf;
