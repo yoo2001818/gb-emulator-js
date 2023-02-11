@@ -1,4 +1,5 @@
 import { FLAG, REGISTER } from './constants';
+import { main_opcodes } from './ops/opcode';
 
 interface Memory {
   read(pos: number): number;
@@ -17,7 +18,7 @@ export class CPU {
   }
 
   readHL(): number {
-    return this.registers[REGISTER.H] << (8 + this.registers[REGISTER.L]);
+    return (this.registers[REGISTER.H] << 8) | this.registers[REGISTER.L];
   }
 
   writeHL(value: number): void {
@@ -43,7 +44,25 @@ export class CPU {
     this.registers[REGISTER.PC] = (pc + bytes) & 0xffff;
   }
 
-  step() {
-    const iByte = this.memory.read(this.registers[REGISTER.PC]);
+  step(): void {
+    const pc = this.registers[REGISTER.PC];
+    const opcode = this.memory.read(pc);
+    const op_exec = main_opcodes[opcode];
+    if (op_exec != null) {
+      op_exec(this, pc);
+    } else {
+      // Illegal instruction
+      // (We skip it through)
+      this.skip(1);
+    }
+    // Clear interrupts
+    this.isInterruptsEnabled = this.isInterruptsEnabledNext;
+  }
+
+  runUntilHalt(): void {
+    this.isRunning = true;
+    while (this.isRunning) {
+      this.step();
+    }
   }
 }

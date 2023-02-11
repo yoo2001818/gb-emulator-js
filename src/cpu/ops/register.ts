@@ -38,7 +38,7 @@ export interface Register16Description {
 }
 
 export const r16_af: Register16Description = {
-  read: (cpu) => cpu.registers[REGISTER.A] << (8 + cpu.registers[REGISTER.F]),
+  read: (cpu) => (cpu.registers[REGISTER.A] << 8) | cpu.registers[REGISTER.F],
   write: (cpu, value) => {
     cpu.registers[REGISTER.A] = (value >>> 8) & 0xff;
     cpu.registers[REGISTER.F] = value & 0xff;
@@ -47,7 +47,7 @@ export const r16_af: Register16Description = {
 };
 
 export const r16_bc: Register16Description = {
-  read: (cpu) => cpu.registers[REGISTER.B] << (8 + cpu.registers[REGISTER.C]),
+  read: (cpu) => (cpu.registers[REGISTER.B] << 8) | cpu.registers[REGISTER.C],
   write: (cpu, value) => {
     cpu.registers[REGISTER.B] = (value >>> 8) & 0xff;
     cpu.registers[REGISTER.C] = value & 0xff;
@@ -56,7 +56,7 @@ export const r16_bc: Register16Description = {
 };
 
 export const r16_de: Register16Description = {
-  read: (cpu) => cpu.registers[REGISTER.D] << (8 + cpu.registers[REGISTER.E]),
+  read: (cpu) => (cpu.registers[REGISTER.D] << 8) | cpu.registers[REGISTER.E],
   write: (cpu, value) => {
     cpu.registers[REGISTER.D] = (value >>> 8) & 0xff;
     cpu.registers[REGISTER.E] = value & 0xff;
