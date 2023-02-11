@@ -1,3 +1,4 @@
+import { CPU } from "../cpu/cpu";
 import { RAM } from "./ram";
 import { Memory } from "./types";
 
@@ -8,14 +9,21 @@ export class MemoryBus implements Memory {
   spriteOAM: Memory;
   endRAM: Memory;
   ioPorts: Memory;
+  lcd: Memory;
+  timer: Memory;
 
-  constructor(cartridge: Memory) {
+  // FIXME: This is only for debugging
+  cpu!: CPU;
+
+  constructor(cartridge: Memory, lcd: Memory, timer: Memory) {
     this.cartridge = cartridge;
     this.mainRAM = new RAM(0x2000);
     this.videoRAM = new RAM(0x2000);
-    this.spriteOAM = new RAM(0xff);
-    this.endRAM = new RAM(0x7f);
-    this.ioPorts = new RAM(0xff);
+    this.spriteOAM = new RAM(0x100);
+    this.endRAM = new RAM(0x80);
+    this.ioPorts = new RAM(0x100);
+    this.lcd = lcd;
+    this.timer = timer;
   }
 
   getTarget(pos: number): [Memory, number] {
@@ -31,7 +39,13 @@ export class MemoryBus implements Memory {
     if (pos < 0xfe00) return [this.mainRAM, pos - 0xe000];
     // fe00 ... ff00 OAM
     if (pos < 0xff00) return [this.spriteOAM, pos - 0xfe00];
-    // ff00 ... ff80 I/O ports
+    // ff04 ... ff0f Timer
+    if (0xff04 < pos && pos < 0xff08) return [this.timer, pos - 0xff00];
+    // ff00 ... ff40 I/O ports
+    if (pos < 0xff40) return [this.ioPorts, pos - 0xff00];
+    // ff40 ... ff50 LCD I/O
+    if (pos < 0xff50) return [this.lcd, pos - 0xff40];
+    // ff50 ... ff80 Empty 
     if (pos < 0xff80) return [this.ioPorts, pos - 0xff00];
     // ff80 ... ffff Internal RAM
     return [this.endRAM, pos - 0xff80];

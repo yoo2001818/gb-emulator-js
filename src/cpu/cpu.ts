@@ -12,10 +12,10 @@ export class CPU {
 
   constructor(memory: Memory) {
     this.memory = memory;
-    this.reboot();
+    this.reset();
   }
 
-  reboot(): void {
+  reset(): void {
     this.registers = [0x01, 0, 0x13, 0, 0xd8, 0xb0, 0x01, 0x4d, 0, 0, 0, 0, 0, 0xfffe];
     this.clocks = 0;
   }
@@ -61,6 +61,7 @@ export class CPU {
     this.memory.write(sp - 1, (value >>> 8) & 0xff);
     this.memory.write(sp - 2, value & 0xff);
     this.registers[REGISTER.SP] = (this.registers[REGISTER.SP] - 2) & 0xffff;
+    this.clocks += 8;
   }
 
   getDebugState(): string {

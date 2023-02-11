@@ -4,7 +4,7 @@ export class MBC3 implements Memory {
   rom: Uint8Array;
   ram: Uint8Array;
   romBank: number = 1;
-  ramBank: number = 1;
+  ramBank: number = 0;
   ramEnabled: boolean = true;
   initialTime: number = Date.now();
   latchedTime: Date | null = null;
@@ -18,7 +18,9 @@ export class MBC3 implements Memory {
     // ROM Bank 00
     if (pos < 0x4000) return this.rom[pos];
     // ROM Bank 01..7F
-    if (pos < 0x8000) return this.rom[(this.romBank * 0x2000 + (pos - 0x4000)) % this.rom.length];
+    if (pos < 0x8000) {
+      return this.rom[(this.romBank * 0x4000 + (pos - 0x4000)) % this.rom.length];
+    }
     // N/A
     if (pos < 0xA000) return 0;
     // RAM Bank 00..03

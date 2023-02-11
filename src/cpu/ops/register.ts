@@ -100,8 +100,8 @@ export const r16s_1: Register16Description[] = [r16_bc, r16_de, r16_hl, r16_sp];
 export const r16s_2: Register16Description[] = [
   r16_bc,
   r16_de,
-  r16_hl_dec,
   r16_hl_inc,
+  r16_hl_dec,
 ];
 
 export const r16s_3: Register16Description[] = [r16_bc, r16_de, r16_hl, r16_af];

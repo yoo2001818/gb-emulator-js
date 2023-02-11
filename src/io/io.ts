@@ -51,3 +51,5 @@
 // FF4B - WX - Window X position
 
 // FFFF - IE - Interrupt Enable
+
+export const test = 1;

@@ -1,6 +1,6 @@
 import { CPU } from '../cpu/cpu';
 
-export const INTERRUPT_TYPES = {
+export const INTERRUPT_TYPE = {
   VBLANK: 0,
   LCDC: 1,
   TIMER_OVERFLOW: 2,
@@ -29,6 +29,16 @@ export class Interrupter {
     }
   }
 
+  getDebugState(): string {
+    const memory = this.cpu.memory;
+    const if_reg = memory.read(IF_ADDR);
+    const ie_reg = memory.read(IE_ADDR);
+    return [
+      `IME: ${this.cpu.isInterruptsEnabled}`,
+      `IF: ${if_reg.toString(16)} IE: ${ie_reg.toString(16)}`,
+    ].join('\n');
+  }
+
   step(): void {
     if (this.cpu.isInterruptsEnabled) {
       const memory = this.cpu.memory;
@@ -50,6 +60,8 @@ export class Interrupter {
         this.cpu.jump(0x40 + (interrupt_type << 8));
       }
     }
-    this.cpu.step();
+    if (this.cpu.isRunning) {
+      this.cpu.step();
+    }
   }
 }
