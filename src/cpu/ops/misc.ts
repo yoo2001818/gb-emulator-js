@@ -1,5 +1,5 @@
 import { OpExec } from './types';
-import { FLAG, REGISTER } from '../register';
+import { FLAG, REGISTER } from '../constants';
 import { Register16Description } from './register';
 
 export const nop: OpExec = (cpu) => {

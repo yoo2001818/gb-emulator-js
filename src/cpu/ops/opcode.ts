@@ -1,6 +1,6 @@
 import { generateLUTRules } from '../lut';
 import { OpExec } from './types';
-import { REGISTER } from '../register';
+import { REGISTER } from '../constants';
 import {
   alu_binary,
   alu_binary_imm,

@@ -1,19 +1,78 @@
 import { CPU } from '../cpu';
-import { OpExec } from './type';
-import { FLAG, REGISTER } from '../register';
+import { OpExec } from './types';
+import { FLAG, REGISTER } from '../constants';
 import { Register8Description } from './register';
 
 export type ALUUnaryOp = (cpu: CPU, a: number) => number;
 export type ALUBinaryOp = (cpu: CPU, a: number, b: number) => number;
 
-export const alu_add: ALUBinaryOp = (cpu, a, b) => cpu.aluAdd(a, b);
-export const alu_adc: ALUBinaryOp = (cpu, a, b) => cpu.aluAdc(a, b);
-export const alu_sub: ALUBinaryOp = (cpu, a, b) => cpu.aluSub(a, b);
-export const alu_sbc: ALUBinaryOp = (cpu, a, b) => cpu.aluSbc(a, b);
-export const alu_and: ALUBinaryOp = (cpu, a, b) => cpu.aluAnd(a, b);
-export const alu_or: ALUBinaryOp = (cpu, a, b) => cpu.aluOr(a, b);
-export const alu_xor: ALUBinaryOp = (cpu, a, b) => cpu.aluXor(a, b);
-export const alu_cp: ALUBinaryOp = (cpu, a, b) => cpu.aluCp(a, b);
+export const alu_add: ALUBinaryOp = (cpu, a, b) => {
+  const result = a + b;
+  cpu.aluSetFlags(
+    (result & 0xff) === 0,
+    false,
+    (result & 0x10) !== 0,
+    (result & 0x100) !== 0
+  );
+  return result & 0xff;
+};
+export const alu_adc: ALUBinaryOp = (cpu, a, b) => {
+  const carry = (cpu.registers[REGISTER.F] >> 4) & 1;
+  const result = a + b + carry;
+  cpu.aluSetFlags(
+    (result & 0xff) === 0,
+    false,
+    (result & 0x10) !== 0,
+    (result & 0x100) !== 0
+  );
+  return result & 0xff;
+};
+export const alu_sub: ALUBinaryOp = (cpu, a, b) => {
+  const result = a - b;
+  cpu.aluSetFlags(
+    (result & 0xff) === 0,
+    true,
+    (result & 0x10) !== 0,
+    (result & 0x100) !== 0
+  );
+  return result & 0xff;
+};
+export const alu_sbc: ALUBinaryOp = (cpu, a, b) => {
+  const carry = (cpu.registers[REGISTER.F] >> 4) & 1;
+  const result = a - b - carry;
+  cpu.aluSetFlags(
+    (result & 0xff) === 0,
+    false,
+    (result & 0x10) !== 0,
+    (result & 0x100) !== 0
+  );
+  return result & 0xff;
+};
+export const alu_and: ALUBinaryOp = (cpu, a, b) => {
+  const result = a & b;
+  cpu.aluSetFlags((result & 0xff) === 0, false, true, false);
+  return result & 0xff;
+};
+export const alu_or: ALUBinaryOp = (cpu, a, b) => {
+  const result = a | b;
+  cpu.aluSetFlags((result & 0xff) === 0, false, false, false);
+  return result & 0xff;
+};
+export const alu_xor: ALUBinaryOp = (cpu, a, b) => {
+  const result = a ^ b;
+  cpu.aluSetFlags((result & 0xff) === 0, false, false, false);
+  return result & 0xff;
+};
+export const alu_cp: ALUBinaryOp = (cpu, a, b) => {
+  const result = a - b;
+  cpu.aluSetFlags(
+    (result & 0xff) === 0,
+    true,
+    (result & 0x10) !== 0,
+    (result & 0x100) !== 0
+  );
+  return a;
+};
 
 export const binary_ops = [
   alu_add,

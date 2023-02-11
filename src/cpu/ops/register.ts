@@ -1,5 +1,5 @@
 import { CPU } from '../cpu';
-import { REGISTER, Register, REGISTER_16 } from '../register';
+import { REGISTER, Register } from '../constants';
 
 export interface Register8Description {
   read(cpu: CPU): number;
@@ -37,15 +37,46 @@ export interface Register16Description {
   postCallback(cpu: CPU): void;
 }
 
-export const r16_simple = (register_id: Register): Register16Description => ({
-  read: (cpu) => cpu.readRegister16(register_id),
+export const r16_af: Register16Description = {
+  read: (cpu) => cpu.registers[REGISTER.A] << (8 + cpu.registers[REGISTER.F]),
   write: (cpu, value) => {
-    cpu.writeRegister16(register_id, value);
+    cpu.registers[REGISTER.A] = (value >>> 8) & 0xff;
+    cpu.registers[REGISTER.F] = value & 0xff;
   },
   postCallback: () => {},
-});
+};
 
-export const r16_hl = r16_simple(REGISTER_16.HL);
+export const r16_bc: Register16Description = {
+  read: (cpu) => cpu.registers[REGISTER.B] << (8 + cpu.registers[REGISTER.C]),
+  write: (cpu, value) => {
+    cpu.registers[REGISTER.B] = (value >>> 8) & 0xff;
+    cpu.registers[REGISTER.C] = value & 0xff;
+  },
+  postCallback: () => {},
+};
+
+export const r16_de: Register16Description = {
+  read: (cpu) => cpu.registers[REGISTER.D] << (8 + cpu.registers[REGISTER.E]),
+  write: (cpu, value) => {
+    cpu.registers[REGISTER.D] = (value >>> 8) & 0xff;
+    cpu.registers[REGISTER.E] = value & 0xff;
+  },
+  postCallback: () => {},
+};
+
+export const r16_sp: Register16Description = {
+  read: (cpu) => cpu.registers[REGISTER.SP],
+  write: (cpu, value) => {
+    cpu.registers[REGISTER.SP] = value;
+  },
+  postCallback: () => {},
+};
+
+export const r16_hl: Register16Description = {
+  read: (cpu) => cpu.readHL(),
+  write: (cpu, value) => cpu.writeHL(value),
+  postCallback: () => {},
+};
 
 export const r16_hl_inc: Register16Description = {
   ...r16_hl,
@@ -61,23 +92,13 @@ export const r16_hl_dec: Register16Description = {
   },
 };
 
-export const r16s_1: Register16Description[] = [
-  r16_simple(REGISTER_16.BC),
-  r16_simple(REGISTER_16.DE),
-  r16_simple(REGISTER_16.HL),
-  r16_simple(REGISTER_16.SP),
-];
+export const r16s_1: Register16Description[] = [r16_bc, r16_de, r16_hl, r16_sp];
 
 export const r16s_2: Register16Description[] = [
-  r16_simple(REGISTER_16.BC),
-  r16_simple(REGISTER_16.DE),
+  r16_bc,
+  r16_de,
   r16_hl_dec,
   r16_hl_inc,
 ];
 
-export const r16s_3: Register16Description[] = [
-  r16_simple(REGISTER_16.BC),
-  r16_simple(REGISTER_16.DE),
-  r16_simple(REGISTER_16.HL),
-  r16_simple(REGISTER_16.AF),
-];
+export const r16s_3: Register16Description[] = [r16_bc, r16_de, r16_hl, r16_af];

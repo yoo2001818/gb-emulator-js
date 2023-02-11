@@ -1,6 +1,6 @@
 import { CPU } from '../cpu';
 import { OpExec } from './types';
-import { REGISTER } from '../register';
+import { REGISTER } from '../constants';
 
 export const jp_a16: OpExec = (cpu, pc) => {
   const nn = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);

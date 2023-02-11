@@ -1,5 +1,5 @@
 import { OpExec } from './types';
-import { REGISTER } from '../register';
+import { REGISTER } from '../constants';
 import { Register16Description, Register8Description } from './register';
 
 export const ld =

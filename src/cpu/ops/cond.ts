@@ -1,5 +1,5 @@
 import { CPU } from '../cpu';
-import { FLAG } from '../register';
+import { FLAG } from '../constants';
 
 export interface ConditionDescription {
   (cpu: CPU): boolean;

@@ -15,14 +15,6 @@ export const REGISTER = {
   SP: 13,
 };
 
-export const REGISTER_16 = {
-  BC: 0,
-  DE: 1,
-  HL: 2,
-  SP: 3,
-  AF: 4,
-};
-
 export const FLAG = {
   C: 4,
   N: 6,
