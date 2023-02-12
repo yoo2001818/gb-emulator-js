@@ -18,11 +18,15 @@ export class SystemTimer implements Memory {
   }
 
   reset() {
-    this.clocks = 0;
+    this.clocks = 0xA7 * DIV_TICK_RATE;
     this.timaClocks = 0;
     this.tima = 0;
     this.tma = 0;
     this.tac = 0;
+  }
+
+  getDebugState(): string {
+    return `DIV: ${this.read(0x4).toString(16).padStart(2, '0')} TIMA: ${this.read(0x5).toString(16).padStart(2, '0')} TMA: ${this.read(0x6).toString(16).padStart(2, '0')} TAC: ${this.read(7).toString(16).padStart(2, '0')}`;
   }
 
   getNextWakeupClockAdvance(): number {
@@ -61,7 +65,7 @@ export class SystemTimer implements Memory {
       case 0x7:
         return this.tac;
       default:
-        return 0;
+        return 0xff;
     }
   }
 

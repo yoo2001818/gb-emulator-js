@@ -9,6 +9,8 @@ export class CPU {
   isRunning = false;
   isInterruptsEnabled = false;
   isInterruptsEnabledNext = false;
+  isTrapped = false;
+  isTrapResolved = false;
 
   constructor(memory: Memory) {
     this.memory = memory;
@@ -18,6 +20,8 @@ export class CPU {
   reset(): void {
     this.registers = [0x01, 0, 0x13, 0, 0xd8, 0xb0, 0x01, 0x4d, 0, 0, 0, 0, 0, 0xfffe];
     this.clocks = 0;
+    this.isInterruptsEnabled = false;
+    this.isInterruptsEnabledNext = false;
   }
 
   readHL(): number {
@@ -56,7 +60,7 @@ export class CPU {
     this.isInterruptsEnabled = false;
     this.isInterruptsEnabledNext = false;
     // Push PC
-    const value = this.registers[REGISTER.PC] + 3;
+    const value = this.registers[REGISTER.PC];
     const sp = this.registers[REGISTER.SP];
     this.memory.write(sp - 1, (value >>> 8) & 0xff);
     this.memory.write(sp - 2, value & 0xff);
@@ -66,15 +70,23 @@ export class CPU {
 
   getDebugState(): string {
     return [
-      `PC: ${this.registers[REGISTER.PC].toString(16)} SP: ${this.registers[REGISTER.SP].toString(16)}`,
-      `A: ${this.registers[REGISTER.A].toString(16)} BC: ${((this.registers[REGISTER.B] << 8) | this.registers[REGISTER.C]).toString(16)}`,
-      `DE: ${((this.registers[REGISTER.D] << 8) | this.registers[REGISTER.E]).toString(16)} HL: ${((this.registers[REGISTER.H] << 8) | this.registers[REGISTER.L]).toString(16)}`,
+      `PC: ${this.registers[REGISTER.PC].toString(16).padStart(4, '0')} SP: ${this.registers[REGISTER.SP].toString(16).padStart(4, '0')}`,
+      `A: ${this.registers[REGISTER.A].toString(16).padStart(4, '0')} BC: ${((this.registers[REGISTER.B] << 8) | this.registers[REGISTER.C]).toString(16).padStart(4, '0')}`,
+      `DE: ${((this.registers[REGISTER.D] << 8) | this.registers[REGISTER.E]).toString(16).padStart(4, '0')} HL: ${((this.registers[REGISTER.H] << 8) | this.registers[REGISTER.L]).toString(16).padStart(4, '0')}`,
       `Z: ${this.getFlag(FLAG.Z)} N: ${this.getFlag(FLAG.N)} H: ${this.getFlag(FLAG.H)} C: ${this.getFlag(FLAG.C)}`,
     ].join('\n');
   }
 
   step(): void {
     const pc = this.registers[REGISTER.PC];
+    /*
+    if (!this.isTrapResolved && pc === 0x369) {
+      console.log('Trapped', pc.toString(16), this.clocks);
+      this.isTrapped = true;
+      return;
+    }
+    */
+    this.isTrapResolved = false;
     const opcode = this.memory.read(pc);
     const op_exec = main_opcodes[opcode];
     // console.log(op_exec);

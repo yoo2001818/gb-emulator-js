@@ -57,7 +57,8 @@ export class Interrupter {
         memory.write(IF_ADDR, if_reg & ~(1 << interrupt_type));
         // Generate interrupts
         this.cpu.enterInterrupt();
-        this.cpu.jump(0x40 + (interrupt_type << 8));
+        console.log('Entering', (0x40 + (interrupt_type * 8)).toString(16));
+        this.cpu.jump(0x40 + (interrupt_type * 8));
       }
     }
     if (this.cpu.isRunning) {

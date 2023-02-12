@@ -1,8 +1,10 @@
+import { REGISTER } from '../cpu/constants';
 import { CPU } from '../cpu/cpu';
 import { LCD, LCD_HEIGHT, LCD_WIDTH } from '../lcd/lcd';
 import { MBC3 } from '../memory/mbc3';
 import { MemoryBus } from '../memory/memoryBus';
 import { RAM } from '../memory/ram';
+import { GamepadController } from './gamepad';
 import { Interrupter } from './interrupter';
 import { SystemTimer } from './timer';
 
@@ -12,21 +14,28 @@ export class Emulator {
   cartridge!: MBC3;
   lcd: LCD;
   timer: SystemTimer;
+  gamepad: GamepadController;
   isRunning: boolean;
   isStepping: boolean;
 
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
 
+  debugTextElem: HTMLDivElement;
+
   constructor(canvas: HTMLCanvasElement) {
     this.cpu = new CPU(new RAM(1));
     this.interrupter = new Interrupter(this.cpu);
     this.lcd = new LCD(this.interrupter);
     this.timer = new SystemTimer(this.interrupter);
+    this.gamepad = new GamepadController();
     this.isRunning = false;
     this.isStepping = false;
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
+    this.debugTextElem = document.createElement('div');
+    document.body.appendChild(this.debugTextElem);
+    this.debugTextElem.style.fontFamily = 'monospace';
   }
 
   load(rom: Uint8Array) {
@@ -36,6 +45,7 @@ export class Emulator {
       this.cartridge,
       this.lcd,
       this.timer,
+      this.gamepad,
     );
     this.cpu.memory = memoryBus;
     memoryBus.cpu = this.cpu;
@@ -45,6 +55,7 @@ export class Emulator {
   reboot() {
     this.lcd.reset();
     this.timer.reset();
+    this.gamepad.reset();
     this.cpu.reset();
     // Assume that we have continued through the bootloader
     this.cpu.jump(0x100);
@@ -59,6 +70,15 @@ export class Emulator {
     this.isRunning = false;
   }
 
+  readStack(nBytes: number): string {
+    const buffer = [];
+    const sp = this.cpu.registers[REGISTER.SP]; 
+    for (let i = 0; i < nBytes; i += 1) {
+      buffer.push(this.cpu.memory.read(sp + i).toString(16).padStart(2, '00'));
+    }
+    return buffer.join(' ');
+  }
+
   update() {
     if (!this.isRunning) return;
     // Generate Pin/Timer interrupt (and run CPU for random time)
@@ -67,23 +87,31 @@ export class Emulator {
     if (this.isStepping) {
       this.lcd.runVblank = true;
     } else {
-      this.lcd.runVblank = false;
-      this.lcd.resetClock();
+      this.lcd.runVblank = true;
+      // this.lcd.runVblank = false;
+      // this.lcd.resetClock();
     }
 
     // Run system until stopped
     // 4.194304MHz -> Around 70000 clocks per each frame
-    let stop_clock = this.cpu.clocks + 70000;
+    let stopClock = this.cpu.clocks + 70000;
     // let stop_clock = this.cpu.clocks + 796976;
     // SRAM - 855528
     // let stop_clock = this.cpu.clocks + 861344;
     // let stop_clock = this.cpu.clocks + 797020;
     // let stop_clock = this.cpu.clocks + 797560;
+    // stopClock = this.cpu.clocks + 501760;
+    // stopClock = this.cpu.clocks + 1048600;
+    // stopClock = this.cpu.clocks + 1056656;
+    // stopClock = this.cpu.clocks + 37069345;
+    // 866980
     if (this.isStepping) {
-      stop_clock = this.cpu.clocks + 4;
+      stopClock = this.cpu.clocks + 4;
       this.isRunning = false;
+      this.cpu.isTrapResolved = true;
+      this.cpu.isTrapped = false;
     }
-    while (this.cpu.clocks < stop_clock && (this.cpu.isRunning || this.cpu.isInterruptsEnabled)) {
+    while (this.cpu.clocks < stopClock && (this.cpu.isRunning || this.cpu.isInterruptsEnabled) && !this.cpu.isTrapped) {
       // Run CPU
       let beforeClock = this.cpu.clocks;
       this.interrupter.step();
@@ -91,10 +119,11 @@ export class Emulator {
       if (elapsedClocks === 0) {
         // CPU is halted; try to retrive next interesting clock
         const skipClocks = Math.min(
-          this.lcd.getNextWakeupClockAdvance(),
-          this.timer.getNextWakeupClockAdvance(),
-          stop_clock - this.cpu.clocks,
+          this.lcd.getNextWakeupClockAdvance() + 1,
+          this.timer.getNextWakeupClockAdvance() + 1,
+          // stopClock - this.cpu.clocks,
         );
+        if (skipClocks === 0) break;
         elapsedClocks = skipClocks;
         this.cpu.clocks += skipClocks;
       }
@@ -108,14 +137,21 @@ export class Emulator {
       console.log(this.cartridge.romBank, this.cartridge.ramBank);
       console.log(this.interrupter.getDebugState());
 
-      /*
       const buffer = [];
-      for (let i = 0xff80; i <= 0xffff; i += 1) {
+      for (let i = this.cpu.registers[REGISTER.SP]; i <= 0xcfff; i += 1) {
         buffer.push(this.cpu.memory.read(i).toString(16));
       }
       console.log(buffer);
-      */
     }
+    this.debugTextElem.innerText = [
+      `CLK: ${this.cpu.clocks}`,
+      this.cpu.getDebugState(),
+      this.interrupter.getDebugState(),
+      this.lcd.getDebugState(),
+      this.timer.getDebugState(),
+      this.cartridge.getDebugState(),
+      `STACK: ${this.readStack(20)}`,
+    ].join('\n');
     // this.isRunning = false;
 
     // Render the screen, sound, etc

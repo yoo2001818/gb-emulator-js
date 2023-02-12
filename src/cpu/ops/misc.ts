@@ -11,10 +11,10 @@ export const push =
   (r: Register16Description): OpExec =>
   (cpu) => {
     const value = r.read(cpu);
-    const sp = cpu.registers[REGISTER.SP];
-    cpu.memory.write(sp - 1, (value >>> 8) & 0xff);
-    cpu.memory.write(sp - 2, value & 0xff);
-    cpu.registers[REGISTER.SP] -= 2;
+    const sp = cpu.registers[REGISTER.SP] - 2;
+    cpu.memory.write(sp + 1, (value >>> 8) & 0xff);
+    cpu.memory.write(sp, value & 0xff);
+    cpu.registers[REGISTER.SP] = sp;
     cpu.skip(1);
     r.postCallback(cpu);
     cpu.clocks += 16;
@@ -84,13 +84,22 @@ export const dec16 =
 
 export const daa: OpExec = (cpu) => {
   let value = cpu.registers[REGISTER.A];
-  if (cpu.getFlag(FLAG.H) || (value & 0x0f) > 9) {
-    value += 0x06;
-  }
   let carry = false;
-  if (cpu.getFlag(FLAG.C) || (value & 0xf0) > 9) {
-    carry = true;
-    value += 0x60;
+  if (cpu.getFlag(FLAG.N)) {
+    if (cpu.getFlag(FLAG.C)) {
+      value = (value - 0x60) & 0xFF;
+    }
+    if (cpu.getFlag(FLAG.H)) {
+      value = (value - 0x06) & 0xFF;
+    }
+  } else {
+    if (cpu.getFlag(FLAG.C) && (value & 0xFF) > 0x99) {
+      value = (value + 0x60) & 0xFF;
+      carry = true;
+    }
+    if (cpu.getFlag(FLAG.H) && (value & 0x0F) > 0x09) {
+      value = (value + 0x06) & 0xFF;
+    }
   }
   cpu.aluSetFlags((value & 0xff) === 0, cpu.getFlag(FLAG.N), false, carry);
   cpu.registers[REGISTER.A] = value & 0xff;
@@ -99,8 +108,8 @@ export const daa: OpExec = (cpu) => {
 };
 
 export const cpl: OpExec = (cpu) => {
-  const result = ~cpu.registers[REGISTER.A] & 0xff;
-  cpu.aluSetFlags(cpu.getFlag(FLAG.Z), false, false, cpu.getFlag(FLAG.C));
+  const result = cpu.registers[REGISTER.A] ^ 0xff;
+  cpu.aluSetFlags(cpu.getFlag(FLAG.Z), true, true, cpu.getFlag(FLAG.C));
   cpu.registers[REGISTER.A] = result;
   cpu.skip(1);
   cpu.clocks += 4;

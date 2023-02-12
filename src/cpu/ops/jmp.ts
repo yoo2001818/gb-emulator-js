@@ -16,7 +16,7 @@ export const jp_cond_a16 =
       cpu.registers[REGISTER.PC] = nn;
       cpu.clocks += 16;
     } else {
-      cpu.skip(1);
+      cpu.skip(3);
       cpu.clocks += 12;
     }
   };
@@ -89,7 +89,7 @@ export const rst_nn =
   (n: number): OpExec =>
   (cpu, pc) => {
     // push
-    const value = pc + 2;
+    const value = pc + 1;
     const sp = cpu.registers[REGISTER.SP];
     cpu.memory.write(sp - 1, (value >>> 8) & 0xff);
     cpu.memory.write(sp - 2, value & 0xff);

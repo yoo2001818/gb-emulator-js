@@ -14,6 +14,12 @@ export class MBC3 implements Memory {
     this.ram = ram;
   }
 
+  getDebugState(): string {
+    return [
+      `ROM Bank: ${this.romBank} RAM Bank: ${this.ramBank}`,
+    ].join('\n');
+  }
+
   read(pos: number): number {
     // ROM Bank 00
     if (pos < 0x4000) return this.rom[pos];

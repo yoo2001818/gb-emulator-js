@@ -9,6 +9,9 @@ export class RAM implements Memory {
   }
 
   read(pos: number): number {
+    if (pos > this.size) {
+      return 0xff;
+    }
     return this.bytes[pos % this.size];
   }
 

@@ -9,21 +9,28 @@ export class MemoryBus implements Memory {
   spriteOAM: Memory;
   endRAM: Memory;
   ioPorts: Memory;
+  nullPort: Memory;
   lcd: Memory;
   timer: Memory;
+  gamepad: Memory;
 
   // FIXME: This is only for debugging
   cpu!: CPU;
 
-  constructor(cartridge: Memory, lcd: Memory, timer: Memory) {
+  constructor(cartridge: Memory, lcd: Memory, timer: Memory, gamepad: Memory) {
     this.cartridge = cartridge;
     this.mainRAM = new RAM(0x2000);
     this.videoRAM = new RAM(0x2000);
     this.spriteOAM = new RAM(0x100);
     this.endRAM = new RAM(0x80);
     this.ioPorts = new RAM(0x100);
+    this.nullPort = {
+      read: () => 0xff,
+      write: () => {},
+    };
     this.lcd = lcd;
     this.timer = timer;
+    this.gamepad = gamepad;
   }
 
   getTarget(pos: number): [Memory, number] {
@@ -39,9 +46,16 @@ export class MemoryBus implements Memory {
     if (pos < 0xfe00) return [this.mainRAM, pos - 0xe000];
     // fe00 ... ff00 OAM
     if (pos < 0xff00) return [this.spriteOAM, pos - 0xfe00];
+    // ff00 ... ff00 Gamepad
+    if (pos === 0xff00) return [this.gamepad, pos - 0xff00];
+    // ff01 ... ff04 General I/O
+    if (pos < 0xff03) return [this.ioPorts, pos - 0xff00];
+    if (pos < 0xff04) return [this.nullPort, pos - 0xff00];
     // ff04 ... ff0f Timer
-    if (0xff04 < pos && pos < 0xff08) return [this.timer, pos - 0xff00];
-    // ff00 ... ff40 I/O ports
+    if (pos < 0xff0f) return [this.timer, pos - 0xff00];
+    // ff0f ... ff0f IF
+    if (pos === 0xff0f) return [this.ioPorts, pos - 0xff00];
+    // ff10 ... ff40 Audio I/O
     if (pos < 0xff40) return [this.ioPorts, pos - 0xff00];
     // ff40 ... ff50 LCD I/O
     if (pos < 0xff50) return [this.lcd, pos - 0xff40];

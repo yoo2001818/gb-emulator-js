@@ -67,6 +67,13 @@ export class LCD implements Memory {
     this.reset();
   }
 
+  getDebugState(): string {
+    return [
+      `LCDC: ${this.read(LCD_IO.LCDC).toString(16).padStart(2, '0')} STAT: ${this.read(LCD_IO.STAT).toString(16).padStart(2, '0')}`,
+      `LY: ${this.read(LCD_IO.LY).toString(16).padStart(2, '0')} LYC: ${this.read(LCD_IO.LYC).toString(16).padStart(2, '0')}`,
+    ].join('\n');
+  }
+
   read(pos: number): number {
     // pos is 0 ~ F. The memory bus would use FF40 ~ FF4F
     switch (pos) {
@@ -87,7 +94,7 @@ export class LCD implements Memory {
       case LCD_IO.LYC:
         return this.lyc;
       case LCD_IO.DMA:
-        return 0;
+        return 0xff;
       case LCD_IO.BGP:
         return this.bgp;
       case LCD_IO.OBP0:
@@ -99,7 +106,7 @@ export class LCD implements Memory {
       case LCD_IO.WX:
         return this.wx;
       default:
-        return 0;
+        return 0xff;
     }
   }
 
