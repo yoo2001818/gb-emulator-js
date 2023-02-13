@@ -29,7 +29,7 @@ export class GamepadController implements Memory {
     switch (pos) {
       case 0: {
         let output = 0;
-        const offset = this.selectedNibbleHigh ? 0 : 4;
+        const offset = this.selectedNibbleHigh ? 4 : 0;
         if (!this.buttons[offset + 0]) output |= 0x1;
         if (!this.buttons[offset + 1]) output |= 0x2;
         if (!this.buttons[offset + 2]) output |= 0x4;
@@ -43,9 +43,9 @@ export class GamepadController implements Memory {
   write(pos: number, value: number): void {
     switch (pos) {
       case 0:
-        if (value & 0x20) {
+        if ((value & 0x20) === 0) {
           this.selectedNibbleHigh = true;
-        } else if (value & 0x10) {
+        } else if ((value & 0x10) === 0) {
           this.selectedNibbleHigh = false;
         }
         break;
