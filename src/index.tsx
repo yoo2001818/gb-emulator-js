@@ -22,6 +22,7 @@ async function loadROM() {
 }
 
 async function start() {
+  let prevTime = Date.now();
   const canvas = document.createElement('canvas');
   document.body.appendChild(canvas);
   canvas.width = LCD_WIDTH;
@@ -35,7 +36,11 @@ async function start() {
   emulator.start();
   
   function update() {
-    emulator.update();
+    const delta = Date.now() - prevTime;
+    if (delta > 1000 / 60) {
+      prevTime = Date.now();
+      emulator.update();
+    }
     requestAnimationFrame(update);
   }
   requestAnimationFrame(update);

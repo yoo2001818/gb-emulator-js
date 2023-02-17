@@ -88,14 +88,14 @@ export class Emulator {
     if (this.isStepping) {
       this.lcd.runVblank = true;
     } else {
-      this.lcd.runVblank = true;
-      // this.lcd.runVblank = false;
-      // this.lcd.resetClock();
+      // this.lcd.runVblank = true;
+      this.lcd.runVblank = false;
+      this.lcd.resetClock();
     }
 
     // Run system until stopped
     // 4.194304MHz -> Around 70000 clocks per each frame
-    let stopClock = this.cpu.clocks + 70000;
+    let stopClock = this.cpu.clocks + 70224;
     // let stop_clock = this.cpu.clocks + 796976;
     // SRAM - 855528
     // let stop_clock = this.cpu.clocks + 861344;

@@ -100,7 +100,7 @@ export const ld16_a16_sp: OpExec = (cpu, pc) => {
   const addr = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
   const value = cpu.registers[REGISTER.SP];
   cpu.memory.write(addr, value & 0xff);
-  cpu.memory.write(addr + 1, (value << 8) & 0xff);
+  cpu.memory.write(addr + 1, (value >>> 8) & 0xff);
   cpu.skip(3);
   cpu.clocks += 20;
 };
@@ -112,8 +112,19 @@ export const ld16_sp_hl: OpExec = (cpu) => {
 };
 
 export const ld16_hl_spr8: OpExec = (cpu, pc) => {
-  const nn = cpu.registers[REGISTER.SP] + cpu.memory.read(pc + 1);
-  cpu.writeHL(nn);
+  const n1 = cpu.registers[REGISTER.SP];
+  let n2 = cpu.memory.read(pc + 1);
+  if (n2 & 0x80) {
+    n2 = -((~n2 + 1) & 0xff);
+  }
+  const result = n1 + n2;
+  cpu.writeHL(result);
+  cpu.aluSetFlags(
+    false,
+    false,
+    ((n1 ^ n2 ^ (result & 0xffff)) & 0x10) === 0x10,
+    ((n1 ^ n2 ^ (result & 0xFFFF)) & 0x100) === 0x100,
+  );
   cpu.skip(2);
   cpu.clocks += 12;
 };

@@ -263,9 +263,6 @@ export class LCD implements Memory {
   // NOTE: The clock may not directly correspond to the CPU.
   advanceClock(clocks: number): void {
     // If not enabled, stop the LCD clock
-    if ((this.lcdc & LCDC.ENABLED) === 0) {
-      return;
-    }
     let remaining = clocks;
     while (remaining > 0) {
       if (this.ly >= VBLANK_LY) {

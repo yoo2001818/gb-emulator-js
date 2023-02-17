@@ -78,9 +78,10 @@ export class CPU {
   }
 
   step(): void {
+    this.isInterruptsEnabled = this.isInterruptsEnabledNext;
     const pc = this.registers[REGISTER.PC];
     /*
-    if (!this.isTrapResolved && pc === 0x369) {
+    if (!this.isTrapResolved && [0xdef8].includes(pc)) {
       console.log('Trapped', pc.toString(16), this.clocks);
       this.isTrapped = true;
       return;
@@ -97,8 +98,6 @@ export class CPU {
       // (We skip it through)
       this.skip(1);
     }
-    // Clear interrupts
-    this.isInterruptsEnabled = this.isInterruptsEnabledNext;
   }
 
   runUntilHalt(): void {

@@ -41,7 +41,7 @@ export const add16 =
     cpu.aluSetFlags(
       cpu.getFlag(FLAG.Z),
       false,
-      (result & 0x1000) !== 0,
+      ((n1 & 0xfff) + (n2 & 0xfff) & 0x1000) !== 0,
       (result & 0x10000) !== 0
     );
     r1.write(cpu, result & 0xffff);
@@ -53,8 +53,17 @@ export const add16 =
 
 export const add16_sp_n: OpExec = (cpu, pc) => {
   const n1 = cpu.registers[REGISTER.SP];
-  const n2 = cpu.memory.read(pc + 1);
+  let n2 = cpu.memory.read(pc + 1);
+  if (n2 & 0x80) {
+    n2 = -((~n2 + 1) & 0xff);
+  }
   const result = n1 + n2;
+  cpu.aluSetFlags(
+    false,
+    false,
+    ((n1 ^ n2 ^ (result & 0xffff)) & 0x10) === 0x10,
+    ((n1 ^ n2 ^ (result & 0xFFFF)) & 0x100) === 0x100,
+  );
   cpu.registers[REGISTER.SP] = result & 0xffff;
   cpu.skip(2);
   cpu.clocks += 16;
@@ -85,22 +94,15 @@ export const dec16 =
 export const daa: OpExec = (cpu) => {
   let value = cpu.registers[REGISTER.A];
   let carry = false;
-  if (cpu.getFlag(FLAG.N)) {
-    if (cpu.getFlag(FLAG.C)) {
-      value = (value - 0x60) & 0xFF;
-    }
-    if (cpu.getFlag(FLAG.H)) {
-      value = (value - 0x06) & 0xFF;
-    }
-  } else {
-    if (cpu.getFlag(FLAG.C) && (value & 0xFF) > 0x99) {
-      value = (value + 0x60) & 0xFF;
-      carry = true;
-    }
-    if (cpu.getFlag(FLAG.H) && (value & 0x0F) > 0x09) {
-      value = (value + 0x06) & 0xFF;
-    }
+  let correction = 0;
+  if (cpu.getFlag(FLAG.H) || (!cpu.getFlag(FLAG.N) && (value & 0xf) > 9)) {
+    correction |= 0x6;
   }
+  if (cpu.getFlag(FLAG.C) || (!cpu.getFlag(FLAG.N) && value > 0x99)) {
+    correction |= 0x60;
+    carry = true;
+  }
+  value += cpu.getFlag(FLAG.N) ? -correction : correction;
   cpu.aluSetFlags((value & 0xff) === 0, cpu.getFlag(FLAG.N), false, carry);
   cpu.registers[REGISTER.A] = value & 0xff;
   cpu.skip(1);

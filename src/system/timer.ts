@@ -32,7 +32,7 @@ export class SystemTimer implements Memory {
   getNextWakeupClockAdvance(): number {
     if (this.tac & 0x4) {
       const tickRate = TIMA_TICK_RATES[this.tac & 0x3];
-      return 0xff * tickRate - this.timaClocks;
+      return 0x100 * tickRate - this.timaClocks;
     }
     return 0x7fffffff;
   }

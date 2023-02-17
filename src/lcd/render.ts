@@ -96,6 +96,7 @@ const ATTRIBUTE = {
 };
 
 export function renderLineSprite(lcd: LCD, line: number): void {
+  if ((lcd.lcdc & LCDC.OBJ_DISPLAY) === 0) return;
   // Read OAM
   const oam = lcd.oam.bytes;
   const vram = lcd.vram.bytes;
@@ -106,7 +107,7 @@ export function renderLineSprite(lcd: LCD, line: number): void {
     let py = line - spriteY;
     if (py < 0 || py >= spriteHeight) continue;
     const spriteX = oam[i + 1] - 8;
-    const tileId = oam[i + 2];
+    let tileId = oam[i + 2];
     const attributes = oam[i + 3];
 
     const obp = (attributes & ATTRIBUTE.PALETTE) ? lcd.obp1 : lcd.obp0;
@@ -114,7 +115,10 @@ export function renderLineSprite(lcd: LCD, line: number): void {
     const flipY = (attributes & ATTRIBUTE.Y_FLIP) !== 0;
     const bgWindowOverObj = (attributes & ATTRIBUTE.BG_WINDOW_OVER_OBJ) !== 0;
 
-    if (flipY) py = spriteHeight - py;
+    if (flipY) py = spriteHeight - 1 - py;
+    if (spriteHeight === 16) {
+      tileId = tileId & 0xfe;
+    }
 
     const tileLine1 = vram[tileId * 16 + py * 2];
     const tileLine2 = vram[tileId * 16 + py * 2 + 1];

@@ -17,7 +17,7 @@ export const alu_add: ALUBinaryOp = (cpu, a, b) => {
   return result & 0xff;
 };
 export const alu_adc: ALUBinaryOp = (cpu, a, b) => {
-  const carry = (cpu.registers[REGISTER.F] >> 4) & 1;
+  const carry = cpu.getFlag(FLAG.C) ? 1 : 0;
   const result = a + b + carry;
   cpu.aluSetFlags(
     (result & 0xff) === 0,
@@ -38,11 +38,11 @@ export const alu_sub: ALUBinaryOp = (cpu, a, b) => {
   return result & 0xff;
 };
 export const alu_sbc: ALUBinaryOp = (cpu, a, b) => {
-  const carry = (cpu.registers[REGISTER.F] >> 4) & 1;
+  const carry = cpu.getFlag(FLAG.C) ? 1 : 0;
   const result = a - b - carry;
   cpu.aluSetFlags(
     (result & 0xff) === 0,
-    false,
+    true,
     (((a & 0xf) - (b & 0xf) - carry) & 0x10) !== 0,
     result < 0,
   );
@@ -105,13 +105,12 @@ export const alu_binary_imm =
   };
 
 export const alu_unary =
-  (op: ALUUnaryOp, r: Register8Description): OpExec =>
+  (op: ALUUnaryOp, r: Register8Description, use4Clocks?: boolean): OpExec =>
   (cpu) => {
     const n = r.read(cpu);
     r.write(cpu, op(cpu, n));
     cpu.skip(1);
-    // FIXME: RLCA, RRCA, RLA, RRA has 4 clocks only
-    cpu.clocks += 8 + r.clocks;
+    cpu.clocks += (use4Clocks ? 4 : 8) + r.clocks;
   };
 
 export const alu_inc: ALUUnaryOp = (cpu, n) => {
@@ -128,7 +127,7 @@ export const alu_dec: ALUUnaryOp = (cpu, n) => {
   const result = n - 1;
   cpu.aluSetFlags(
     n === 1,
-    false,
+    true,
     (n & 0xf) === 0,
     cpu.getFlag(FLAG.C),
   );
@@ -149,20 +148,20 @@ export const alu_rl = (useZero: boolean): ALUUnaryOp => (cpu, n) => {
   const carry = cpu.getFlag(FLAG.C) ? 1 : 0;
   const oldBit = n & 0x80;
   const result = ((n << 1) & 0xff) | carry;
-  cpu.aluSetFlags(result === 0, false, false, oldBit !== 0);
+  cpu.aluSetFlags(useZero && result === 0, false, false, oldBit !== 0);
   return result;
 };
 export const alu_rrc = (useZero: boolean): ALUUnaryOp => (cpu, n) => {
   const oldBit = n & 0x01;
   const result = ((n >>> 1) & 0xff) | (oldBit << 7);
-  cpu.aluSetFlags(result === 0, false, false, oldBit !== 0);
+  cpu.aluSetFlags(useZero && result === 0, false, false, oldBit !== 0);
   return result;
 };
 export const alu_rr = (useZero: boolean): ALUUnaryOp => (cpu, n) => {
   const carry = cpu.getFlag(FLAG.C) ? 1 : 0;
   const oldBit = n & 0x01;
   const result = ((n >>> 1) & 0xff) | (carry << 7);
-  cpu.aluSetFlags(result === 0, false, false, oldBit !== 0);
+  cpu.aluSetFlags(useZero && result === 0, false, false, oldBit !== 0);
   return result;
 };
 export const alu_sla: ALUUnaryOp = (cpu, n) => {
