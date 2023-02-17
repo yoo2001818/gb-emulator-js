@@ -31,20 +31,21 @@ export function dumpVRAM(lcd: LCD): void {
         const color = PALETTE[colorId];
         const ax = px + x;
         const ay = py + y;
-        bitmap[(ay * 256 + ax) * 4] = (color >>> 24) & 0xff;
-        bitmap[(ay * 256 + ax) * 4 + 1] = (color >>> 16) & 0xff;
-        bitmap[(ay * 256 + ax) * 4 + 2] = (color >>> 8) & 0xff;
-        bitmap[(ay * 256 + ax) * 4 + 3] = color & 0xff;
+        bitmap[(ay * 128 + ax) * 4] = (color >>> 24) & 0xff;
+        bitmap[(ay * 128 + ax) * 4 + 1] = (color >>> 16) & 0xff;
+        bitmap[(ay * 128 + ax) * 4 + 2] = (color >>> 8) & 0xff;
+        bitmap[(ay * 128 + ax) * 4 + 3] = color & 0xff;
       }
     }
   }
   const ctx = canvas.getContext('2d');
-  const imgData = new ImageData(bitmap, 256, 96);
+  const imgData = new ImageData(bitmap, 128, 192);
   ctx?.putImageData(imgData, 0, 0);
 
   let dumpEl2 = document.getElementById('dump-text');
   if (dumpEl2 == null) {
     dumpEl2 = document.createElement('div');
+    dumpEl2.id = 'dump-text';
     dumpEl2.style.fontFamily = 'monospace';
     document.body.appendChild(dumpEl2);
   }

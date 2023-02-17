@@ -102,15 +102,16 @@ export const alu_binary_imm =
     const n2 = cpu.memory.read(pc + 1);
     cpu.registers[REGISTER.A] = op(cpu, n1, n2);
     cpu.skip(2);
+    cpu.clocks += 8;
   };
 
 export const alu_unary =
-  (op: ALUUnaryOp, r: Register8Description, use4Clocks?: boolean): OpExec =>
+  (op: ALUUnaryOp, r: Register8Description, clocks: number): OpExec =>
   (cpu) => {
     const n = r.read(cpu);
     r.write(cpu, op(cpu, n));
     cpu.skip(1);
-    cpu.clocks += (use4Clocks ? 4 : 8) + r.clocks;
+    cpu.clocks += clocks + r.clocks;
   };
 
 export const alu_inc: ALUUnaryOp = (cpu, n) => {
