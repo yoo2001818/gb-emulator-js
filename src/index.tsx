@@ -15,7 +15,7 @@ const CONTROLS_MAP: Record<string, number | undefined> = {
 };
 
 async function loadROM() {
-  const res = await fetch('/drmario.gb');
+  const res = await fetch('/pokemon_red.gb');
   const array_buffer = await res.arrayBuffer();
   const buffer = new Uint8Array(array_buffer);
   return buffer;

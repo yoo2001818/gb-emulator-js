@@ -1,6 +1,7 @@
+import { RAM } from '../memory/ram';
 import { Memory } from '../memory/types';
 import { Interrupter, INTERRUPT_TYPE } from '../system/interrupter';
-import { renderLCDLine } from './render';
+import { renderLine } from './render';
 
 export const LCD_IO = {
   LCDC: 0,
@@ -18,14 +19,14 @@ export const LCD_IO = {
 };
 
 export const LCDC = {
-  ENABLED: 1,
-  WINDOW_TILE_MAP_DISPLAY_SELECT: 2,
-  WINDOW_DISPLAY: 4,
-  BG_WINDOW_TILE_DATA_SELECT: 8,
-  BG_TILE_MAP_DISPLAY_SELECT: 16,
-  OBJ_SIZE: 32,
-  OBJ_DISPLAY: 64,
-  BG_WINDOW_DISPLAY: 128,
+  BG_WINDOW_DISPLAY: 1,
+  OBJ_DISPLAY: 2,
+  OBJ_SIZE: 4,
+  BG_TILE_MAP_DISPLAY_SELECT: 8,
+  BG_WINDOW_TILE_DATA_SELECT: 16,
+  WINDOW_DISPLAY: 32,
+  WINDOW_TILE_MAP_DISPLAY_SELECT: 64,
+  ENABLED: 128,
 };
 
 const VBLANK_LY = 144;
@@ -60,7 +61,9 @@ export class LCD implements Memory {
   clocks: number = 0;
   mode: number = 0;
   runVblank: boolean = false;
-  outputBitmap!: Uint8ClampedArray;
+  framebuffer!: Uint16Array;
+  vram!: RAM;
+  oam!: RAM;
 
   constructor(interrupter: Interrupter) {
     this.setInterrupter(interrupter);
@@ -136,7 +139,6 @@ export class LCD implements Memory {
         const source = value << 8;
         const dest = 0xfe00;
         const memory = this.interrupter.cpu.memory;
-        console.log('DMA', (source).toString(16), dest.toString(16));
         for (let i = 0; i < 140; i += 1) {
           memory.write(dest + i, memory.read(source + i));
         }
@@ -179,7 +181,9 @@ export class LCD implements Memory {
     this.lineClock = 0;
     this.clocks = 0;
     this.mode = 0;
-    this.outputBitmap = new Uint8ClampedArray(LCD_WIDTH * LCD_HEIGHT * 4);
+    this.framebuffer = new Uint16Array(LCD_WIDTH * LCD_HEIGHT);
+    this.vram = new RAM(0x2000);
+    this.oam = new RAM(0x100);
   }
 
   handleLineChange(): void {
@@ -215,7 +219,7 @@ export class LCD implements Memory {
 
   handleMode0Enter(): void {
     this.mode = 0;
-    renderLCDLine(this.interrupter.cpu.memory, this, this.outputBitmap, this.ly);
+    renderLine(this, this.ly);
     if (this.stat & 0x08) {
       // H-blank interrupt requested
       this.interrupter.queueInterrupt(INTERRUPT_TYPE.LCDC);
@@ -258,6 +262,10 @@ export class LCD implements Memory {
 
   // NOTE: The clock may not directly correspond to the CPU.
   advanceClock(clocks: number): void {
+    // If not enabled, stop the LCD clock
+    if ((this.lcdc & LCDC.ENABLED) === 0) {
+      return;
+    }
     let remaining = clocks;
     while (remaining > 0) {
       if (this.ly >= VBLANK_LY) {

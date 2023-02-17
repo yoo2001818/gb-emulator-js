@@ -1,79 +1,146 @@
-import { Memory } from "../memory/types";
 import { LCD, LCDC, LCD_HEIGHT, LCD_WIDTH } from "./lcd";
 
-const LCD_COLOR_PALETTE = [
-  0xffffffff,
-  0xaaaaaaff,
-  0x555555ff,
-  0x000000ff,
-]
+function getBGTileDataAddress(lcd: LCD, id: number): number {
+  const bgTileSigned = (lcd.lcdc & LCDC.BG_WINDOW_TILE_DATA_SELECT) === 0;
+  if (bgTileSigned) {
+    // Video RAM starts with 0x8000. Therefore 0x800 here maps to 0x8800.
+    if (id >= 128) return 0x800 + (id - 128) * 16;
+    return 0x1000 + id * 16;
+  }
+  return id * 16;
+}
 
-export function renderLCDLine(
-  memory: Memory,
+function getBGTileId(lcd: LCD, x: number, y: number): number {
+  // Again, this is directly read from VRAM.
+  const bgMapBase = (lcd.lcdc & LCDC.BG_TILE_MAP_DISPLAY_SELECT) ? 0x1c00 : 0x1800;
+  return lcd.vram.read(bgMapBase + (32 * y) + x);
+}
+
+function getWindowTileId(lcd: LCD, x: number, y: number): number {
+  // Again, this is directly read from VRAM.
+  const bgMapBase = (lcd.lcdc & LCDC.WINDOW_TILE_MAP_DISPLAY_SELECT) ? 0x1c00 : 0x1800;
+  return lcd.vram.read(bgMapBase + (32 * y) + x);
+}
+
+function renderLineBG(lcd: LCD, line: number): void {
+  if ((lcd.lcdc & LCDC.BG_WINDOW_DISPLAY) === 0) return;
+
+  const vram = lcd.vram.bytes;
+  const drawY = line + lcd.scy;
+  const tileY = (drawY / 8) & 0x1f;
+  const py = drawY % 8;
+  const fbAddr = line * LCD_WIDTH;
+
+  let currentX = 0;
+  do {
+    const drawX = currentX + lcd.scx;
+    const tileX = (drawX / 8) & 0x1f;
+    let px = 7 - (drawX % 8);
+
+    // Read tile data of the current position
+    const tileId = getBGTileId(lcd, tileX, tileY);
+    const tileAddr = getBGTileDataAddress(lcd, tileId);
+    const tileLine1 = vram[tileAddr + py * 2];
+    const tileLine2 = vram[tileAddr + py * 2 + 1];
+
+    // Paint the pixel..
+    while (px >= 0) {
+      const colorId = ((tileLine1 >> px) & 1) | (((tileLine2 >> px) & 1) << 1);
+      const color = (lcd.bgp >> (colorId << 1)) & 0x03;
+      lcd.framebuffer[fbAddr + currentX] = color;
+      px -= 1;
+      currentX += 1;
+    }
+  } while (currentX < LCD_WIDTH);
+}
+
+function renderLineWindow(lcd: LCD, line: number): void {
+  if ((lcd.lcdc & LCDC.BG_WINDOW_DISPLAY) === 0) return;
+  if ((lcd.lcdc & LCDC.WINDOW_DISPLAY) === 0) return;
+
+  const vram = lcd.vram.bytes;
+  const drawY = line - lcd.wy;
+  if (drawY < 0) return;
+  const tileY = (drawY / 8) & 0x1f;
+  const py = drawY % 8;
+  const fbAddr = line * LCD_WIDTH;
+
+  let currentX = Math.max(0, lcd.wx - 7);
+  do {
+    const drawX = currentX - (lcd.wx - 7);
+    const tileX = (drawX / 8) & 0x1f;
+    let px = 7 - (drawX % 8);
+
+    // Read tile data of the current position
+    const tileId = getWindowTileId(lcd, tileX, tileY);
+    const tileAddr = getBGTileDataAddress(lcd, tileId);
+    const tileLine1 = vram[tileAddr + py * 2];
+    const tileLine2 = vram[tileAddr + py * 2 + 1];
+
+    // Paint the pixel..
+    while (px >= 0) {
+      const colorId = ((tileLine1 >> px) & 1) | (((tileLine2 >> px) & 1) << 1);
+      const color = (lcd.bgp >> (colorId << 1)) & 0x03;
+      lcd.framebuffer[fbAddr + currentX] = color;
+      px -= 1;
+      currentX += 1;
+    }
+  } while (currentX < LCD_WIDTH);
+}
+
+const ATTRIBUTE = {
+  PALETTE: 16,
+  X_FLIP: 32,
+  Y_FLIP: 64,
+  BG_WINDOW_OVER_OBJ: 128,
+};
+
+export function renderLineSprite(lcd: LCD, line: number): void {
+  // Read OAM
+  const oam = lcd.oam.bytes;
+  const vram = lcd.vram.bytes;
+  const spriteHeight = (lcd.lcdc & LCDC.OBJ_SIZE) ? 16 : 8;
+  const fbAddr = line * LCD_WIDTH;
+  for (let i = 0; i < 160; i += 4) {
+    const spriteY = oam[i] - 16;
+    let py = line - spriteY;
+    if (py < 0 || py >= spriteHeight) continue;
+    const spriteX = oam[i + 1] - 8;
+    const tileId = oam[i + 2];
+    const attributes = oam[i + 3];
+
+    const obp = (attributes & ATTRIBUTE.PALETTE) ? lcd.obp1 : lcd.obp0;
+    const flipX = (attributes & ATTRIBUTE.X_FLIP) !== 0;
+    const flipY = (attributes & ATTRIBUTE.Y_FLIP) !== 0;
+    const bgWindowOverObj = (attributes & ATTRIBUTE.BG_WINDOW_OVER_OBJ) !== 0;
+
+    if (flipY) py = spriteHeight - py;
+
+    const tileLine1 = vram[tileId * 16 + py * 2];
+    const tileLine2 = vram[tileId * 16 + py * 2 + 1];
+    for (let x = 0; x < 8; x += 1) {
+      const px = flipX ? x : (7 - x);
+      const currentX = spriteX + x;
+      if (currentX < 0 || currentX >= LCD_WIDTH) continue;
+      const colorId = ((tileLine1 >> px) & 1) | (((tileLine2 >> px) & 1) << 1);
+      if (colorId === 0) continue;
+      const color = (obp >> (colorId << 1)) & 0x03;
+      if (bgWindowOverObj) {
+        const currentColor = lcd.framebuffer[fbAddr + currentX];
+        if (currentColor !== 0) continue;
+      }
+      lcd.framebuffer[fbAddr + currentX] = color;
+    }
+  }
+}
+
+export function renderLine(
   lcd: LCD,
-  // The bitmap data we'll send to the canvas
-  // Therefore, it's a RGBA data
-  output: Uint8ClampedArray,
   line: number,
 ): void {
   if (line >= LCD_HEIGHT) return;
-  // if (!(lcd.lcdc & LCDC.ENABLED)) return;
 
-  // Draw background
-  const bg_tile_signed = (lcd.lcdc & LCDC.BG_WINDOW_TILE_DATA_SELECT) === 0;
-  const bg_data_base = bg_tile_signed ? 0x9000 : 0x8000;
-  const bg_map_base = (lcd.lcdc & LCDC.BG_TILE_MAP_DISPLAY_SELECT) ? 0x9c00 : 0x9800;
-  // Each tile is 8x8, therefore we can select tile Y like this:
-  const bg_y = (line / 8) | 0;
-  const bg_yd = line % 8;
-  for (let x = 0; x < LCD_WIDTH; x += 1) {
-    const bg_x = (x / 8) | 0;
-    const bg_xd = 7 - (x % 8);
-    // Fetch the requested tile
-    let tile_id = memory.read(bg_map_base + (32 * bg_y) + bg_x);
-    if (bg_tile_signed && (tile_id & 0x80)) {
-      tile_id = -((~tile_id + 1) & 0xff);
-    }
-    const tile_data_base = bg_data_base + tile_id * 16 + bg_yd * 2;
-    const tile_line1 = memory.read(tile_data_base);
-    const tile_line2 = memory.read(tile_data_base + 1);
-    const color_id = ((tile_line1 >> bg_xd) & 1) | (((tile_line2 >> bg_xd) & 1) << 1);
-    const color = (lcd.bgp >> (color_id << 1)) & 0x03;
-    // Set color 
-    const rgb_color = LCD_COLOR_PALETTE[color];
-    output[(line * LCD_WIDTH + x) * 4] = (rgb_color >> 24) & 0xff;
-    output[(line * LCD_WIDTH + x) * 4 + 1] = (rgb_color >> 16) & 0xff;
-    output[(line * LCD_WIDTH + x) * 4 + 2] = (rgb_color >> 8) & 0xff;
-    output[(line * LCD_WIDTH + x) * 4 + 3] = rgb_color & 0xff;
-  }
-  
-  // Draw window
-
-  // Read OAM
-  const sprite_height = (lcd.lcdc & LCDC.OBJ_SIZE) ? 16 : 8;
-  const sprite_data_base = 0x8000;
-  for (let i = 0; i < 160; i += 4) {
-    const sprite_y = memory.read(0xFE00 + i) - 16;
-    const sprite_x = memory.read(0xFE00 + i + 1) - 8;
-    const tile_id = memory.read(0xFE00 + i + 2);
-    const attributes = memory.read(0xFE00 + i + 3);
-    if (sprite_y + sprite_height < line || sprite_y > line) continue;
-    const final_y = line - sprite_y;
-    const sprite_addr = sprite_data_base + tile_id * 16 + final_y * 2;
-    const line1 = memory.read(sprite_addr);
-    const line2 = memory.read(sprite_addr + 1);
-    for (let x = 0; x < 8; x += 1) {
-      const bit_x = 7 - x;
-      let final_x = sprite_x + x;
-      if (final_x < 0 || final_x >= LCD_WIDTH) continue;
-      const color_id = ((line1 >> bit_x) & 1) | (((line2 >> bit_x) & 1) << 1);
-      const color = color_id;
-      // Set color 
-      const rgb_color = LCD_COLOR_PALETTE[color];
-      output[(line * LCD_WIDTH + final_x) * 4] = (rgb_color >> 24) & 0xff;
-      output[(line * LCD_WIDTH + final_x) * 4 + 1] = (rgb_color >> 16) & 0xff;
-      output[(line * LCD_WIDTH + final_x) * 4 + 2] = (rgb_color >> 8) & 0xff;
-      output[(line * LCD_WIDTH + final_x) * 4 + 3] = rgb_color & 0xff;
-    }
-  }
+  renderLineBG(lcd, line);
+  renderLineWindow(lcd, line);
+  renderLineSprite(lcd, line);
 }

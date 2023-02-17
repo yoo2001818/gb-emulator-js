@@ -1,27 +1,24 @@
 import { CPU } from "../cpu/cpu";
+import { LCD } from "../lcd/lcd";
 import { RAM } from "./ram";
 import { Memory } from "./types";
 
 export class MemoryBus implements Memory {
   cartridge: Memory;
   mainRAM: Memory;
-  videoRAM: Memory;
-  spriteOAM: Memory;
   endRAM: Memory;
   ioPorts: Memory;
   nullPort: Memory;
-  lcd: Memory;
+  lcd: LCD;
   timer: Memory;
   gamepad: Memory;
 
   // FIXME: This is only for debugging
   cpu!: CPU;
 
-  constructor(cartridge: Memory, lcd: Memory, timer: Memory, gamepad: Memory) {
+  constructor(cartridge: Memory, lcd: LCD, timer: Memory, gamepad: Memory) {
     this.cartridge = cartridge;
     this.mainRAM = new RAM(0x2000);
-    this.videoRAM = new RAM(0x2000);
-    this.spriteOAM = new RAM(0x100);
     this.endRAM = new RAM(0x80);
     this.ioPorts = new RAM(0x100);
     this.nullPort = {
@@ -37,7 +34,7 @@ export class MemoryBus implements Memory {
     // 0000 ... 8000 Cartridge
     if (pos < 0x8000) return [this.cartridge, pos];
     // 8000 ... a000 Video RAM
-    if (pos < 0xa000) return [this.videoRAM, pos - 0x8000];
+    if (pos < 0xa000) return [this.lcd.vram, pos - 0x8000];
     // a000 ... c000 Cartridge SRAM Bank
     if (pos < 0xc000) return [this.cartridge, pos];
     // c000 ... e000 Internal RAM
@@ -45,7 +42,7 @@ export class MemoryBus implements Memory {
     // e000 ... fe00 Echo of Internal RAM
     if (pos < 0xfe00) return [this.mainRAM, pos - 0xe000];
     // fe00 ... ff00 OAM
-    if (pos < 0xff00) return [this.spriteOAM, pos - 0xfe00];
+    if (pos < 0xff00) return [this.lcd.oam, pos - 0xfe00];
     // ff00 ... ff00 Gamepad
     if (pos === 0xff00) return [this.gamepad, pos - 0xff00];
     // ff01 ... ff04 General I/O

@@ -4,6 +4,7 @@ import { LCD, LCD_HEIGHT, LCD_WIDTH } from '../lcd/lcd';
 import { MBC3 } from '../memory/mbc3';
 import { MemoryBus } from '../memory/memoryBus';
 import { RAM } from '../memory/ram';
+import { drawCanvas } from './canvas';
 import { GamepadController } from './gamepad';
 import { Interrupter } from './interrupter';
 import { SystemTimer } from './timer';
@@ -155,7 +156,6 @@ export class Emulator {
     // this.isRunning = false;
 
     // Render the screen, sound, etc
-    const imageData = new ImageData(this.lcd.outputBitmap, LCD_WIDTH, LCD_HEIGHT);
-    this.ctx.putImageData(imageData, 0, 0);
+    drawCanvas(this.lcd, this.ctx);
   }
 }
