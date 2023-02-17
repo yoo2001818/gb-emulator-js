@@ -139,7 +139,7 @@ export class LCD implements Memory {
         const source = value << 8;
         const dest = 0xfe00;
         const memory = this.interrupter.cpu.memory;
-        for (let i = 0; i < 140; i += 1) {
+        for (let i = 0; i < 160; i += 1) {
           memory.write(dest + i, memory.read(source + i));
         }
         return;

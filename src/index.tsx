@@ -1,5 +1,6 @@
 import './index.css';
 import { LCD_HEIGHT, LCD_WIDTH } from './lcd/lcd';
+import { dumpVRAM } from './system/dumpVRAM';
 import { Emulator } from './system/emulator';
 import { BUTTON } from './system/gamepad';
 
@@ -22,7 +23,7 @@ async function loadROM() {
 }
 
 async function start() {
-  let prevTime = Date.now();
+  let prevTime = performance.now();
   const canvas = document.createElement('canvas');
   document.body.appendChild(canvas);
   canvas.width = LCD_WIDTH;
@@ -36,9 +37,9 @@ async function start() {
   emulator.start();
   
   function update() {
-    const delta = Date.now() - prevTime;
-    if (delta > 1000 / 60) {
-      prevTime = Date.now();
+    const delta = performance.now() - prevTime;
+    if (delta > (1000 / 60)) {
+      prevTime = performance.now();
       emulator.update();
     }
     requestAnimationFrame(update);
@@ -69,6 +70,9 @@ async function start() {
         emulator.isRunning = true;
         emulator.isStepping = true;
         break;
+      }
+      case 'r': {
+        dumpVRAM(emulator.lcd);
       }
     }
     const mappedButton = CONTROLS_MAP[e.key];

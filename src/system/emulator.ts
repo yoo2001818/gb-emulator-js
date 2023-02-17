@@ -1,6 +1,6 @@
 import { REGISTER } from '../cpu/constants';
 import { CPU } from '../cpu/cpu';
-import { LCD, LCD_HEIGHT, LCD_WIDTH } from '../lcd/lcd';
+import { LCD } from '../lcd/lcd';
 import { MBC3 } from '../memory/mbc3';
 import { MemoryBus } from '../memory/memoryBus';
 import { RAM } from '../memory/ram';
