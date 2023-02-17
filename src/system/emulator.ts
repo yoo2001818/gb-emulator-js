@@ -3,6 +3,7 @@ import { REGISTER } from '../cpu/constants';
 import { CPU } from '../cpu/cpu';
 import { LCD } from '../lcd/lcd';
 import { MBC3 } from '../memory/mbc3';
+import { MBC5 } from '../memory/mbc5';
 import { MemoryBus } from '../memory/memoryBus';
 import { RAM } from '../memory/ram';
 import { drawCanvas } from './canvas';
@@ -26,13 +27,13 @@ export class Emulator {
 
   debugTextElem: HTMLDivElement;
 
-  constructor(canvas: HTMLCanvasElement, audioCtx: AudioContext) {
+  constructor(canvas: HTMLCanvasElement) {
     this.cpu = new CPU(new RAM(1));
     this.interrupter = new Interrupter(this.cpu);
     this.lcd = new LCD(this.interrupter);
     this.timer = new SystemTimer(this.interrupter);
     this.gamepad = new GamepadController();
-    this.apu = new APU(audioCtx);
+    this.apu = new APU();
     this.isRunning = false;
     this.isStepping = false;
     this.canvas = canvas;
@@ -44,7 +45,25 @@ export class Emulator {
 
   load(rom: Uint8Array) {
     // TODO: Read ROM data and provide proper bank controller
-    this.cartridge = new MBC3(rom, new Uint8Array(8192 * 4));
+    const cartridgeType = rom[0x147];
+    switch (cartridgeType) {
+      case 0x19:
+      case 0x1a:
+      case 0x1b:
+      case 0x1c:
+      case 0x1d:
+      case 0x1e:
+        // MBC5
+        this.cartridge = new MBC5(rom, new Uint8Array(8192 * 4));
+        break;
+      case 0x11:
+      case 0x12:
+      case 0x13:
+      default:
+        // MBC3
+        this.cartridge = new MBC3(rom, new Uint8Array(8192 * 4));
+        break;
+    }
     const memoryBus = new MemoryBus(
       this.cartridge,
       this.lcd,
@@ -158,6 +177,7 @@ export class Emulator {
       this.timer.getDebugState(),
       this.cartridge.getDebugState(),
       `STACK: ${this.readStack(20)}`,
+      this.apu.getDebugState(),
     ].join('\n');
     // this.isRunning = false;
 

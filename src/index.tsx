@@ -22,8 +22,9 @@ async function loadROM() {
   return buffer;
 }
 
+const FRAME_RATE = 1000 / 60;
+
 async function start() {
-  const audioCtx = new AudioContext();
   let prevTime = performance.now();
   const canvas = document.createElement('canvas');
   document.body.appendChild(canvas);
@@ -31,7 +32,7 @@ async function start() {
   canvas.height = LCD_HEIGHT;
   canvas.style.width = `${LCD_WIDTH * 2}px`;
   canvas.style.height = `${LCD_HEIGHT * 2}px`;
-  const emulator = new Emulator(canvas, audioCtx);
+  const emulator = new Emulator(canvas);
   const rom = await loadROM();
   emulator.load(rom);
   emulator.reboot();
@@ -39,9 +40,14 @@ async function start() {
   
   function update() {
     const delta = performance.now() - prevTime;
-    if (delta > (1000 / 60)) {
-      prevTime = performance.now();
+    const runFrames = Math.min(10, Math.floor(delta / FRAME_RATE));
+    for (let i = 0; i < runFrames; i += 1) {
       emulator.update();
+      prevTime += FRAME_RATE;
+    }
+    if (runFrames === 10) {
+      // The computer can't keep up; just update the clock
+      prevTime = performance.now();
     }
     requestAnimationFrame(update);
   }
@@ -111,6 +117,10 @@ async function start() {
       reader.readAsArrayBuffer(file);
     }
   });
+  
+  window.addEventListener('click', async () => {
+    emulator.apu.setup();
+  })
 }
 
 start();
