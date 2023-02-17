@@ -1,3 +1,4 @@
+import { APU } from '../audio/apu';
 import { REGISTER } from '../cpu/constants';
 import { CPU } from '../cpu/cpu';
 import { LCD } from '../lcd/lcd';
@@ -16,6 +17,7 @@ export class Emulator {
   lcd: LCD;
   timer: SystemTimer;
   gamepad: GamepadController;
+  apu: APU;
   isRunning: boolean;
   isStepping: boolean;
 
@@ -24,12 +26,13 @@ export class Emulator {
 
   debugTextElem: HTMLDivElement;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, audioCtx: AudioContext) {
     this.cpu = new CPU(new RAM(1));
     this.interrupter = new Interrupter(this.cpu);
     this.lcd = new LCD(this.interrupter);
     this.timer = new SystemTimer(this.interrupter);
     this.gamepad = new GamepadController();
+    this.apu = new APU(audioCtx);
     this.isRunning = false;
     this.isStepping = false;
     this.canvas = canvas;
@@ -47,6 +50,7 @@ export class Emulator {
       this.lcd,
       this.timer,
       this.gamepad,
+      this.apu,
     );
     this.cpu.memory = memoryBus;
     memoryBus.cpu = this.cpu;
@@ -57,6 +61,7 @@ export class Emulator {
     this.lcd.reset();
     this.timer.reset();
     this.gamepad.reset();
+    this.apu.reset();
     this.cpu.reset();
     // Assume that we have continued through the bootloader
     this.cpu.jump(0x100);
@@ -131,6 +136,7 @@ export class Emulator {
       // Run I/O
       this.lcd.advanceClock(elapsedClocks);
       this.timer.advanceClock(elapsedClocks);
+      this.apu.advanceClock(elapsedClocks);
     }
     if (this.isStepping) {
       console.log(this.lcd);
@@ -157,5 +163,6 @@ export class Emulator {
 
     // Render the screen, sound, etc
     drawCanvas(this.lcd, this.ctx);
+    this.apu.finalize();
   }
 }

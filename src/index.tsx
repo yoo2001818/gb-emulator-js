@@ -23,6 +23,7 @@ async function loadROM() {
 }
 
 async function start() {
+  const audioCtx = new AudioContext();
   let prevTime = performance.now();
   const canvas = document.createElement('canvas');
   document.body.appendChild(canvas);
@@ -30,7 +31,7 @@ async function start() {
   canvas.height = LCD_HEIGHT;
   canvas.style.width = `${LCD_WIDTH * 2}px`;
   canvas.style.height = `${LCD_HEIGHT * 2}px`;
-  const emulator = new Emulator(canvas);
+  const emulator = new Emulator(canvas, audioCtx);
   const rom = await loadROM();
   emulator.load(rom);
   emulator.reboot();

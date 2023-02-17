@@ -12,11 +12,12 @@ export class MemoryBus implements Memory {
   lcd: LCD;
   timer: Memory;
   gamepad: Memory;
+  apu: Memory;
 
   // FIXME: This is only for debugging
   cpu!: CPU;
 
-  constructor(cartridge: Memory, lcd: LCD, timer: Memory, gamepad: Memory) {
+  constructor(cartridge: Memory, lcd: LCD, timer: Memory, gamepad: Memory, apu: Memory) {
     this.cartridge = cartridge;
     this.mainRAM = new RAM(0x2000);
     this.endRAM = new RAM(0x80);
@@ -28,6 +29,7 @@ export class MemoryBus implements Memory {
     this.lcd = lcd;
     this.timer = timer;
     this.gamepad = gamepad;
+    this.apu = apu;
   }
 
   getTarget(pos: number): [Memory, number] {
@@ -53,7 +55,7 @@ export class MemoryBus implements Memory {
     // ff0f ... ff0f IF
     if (pos === 0xff0f) return [this.ioPorts, pos - 0xff00];
     // ff10 ... ff40 Audio I/O
-    if (pos < 0xff40) return [this.ioPorts, pos - 0xff00];
+    if (pos < 0xff40) return [this.apu, pos - 0xff10];
     // ff40 ... ff50 LCD I/O
     if (pos < 0xff50) return [this.lcd, pos - 0xff40];
     // ff50 ... ff80 Empty 
