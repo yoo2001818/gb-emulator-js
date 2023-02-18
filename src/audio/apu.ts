@@ -1,12 +1,14 @@
 import { RAM } from "../memory/ram";
 import { Memory } from "../memory/types";
+import { PSG } from "./psg/psg";
+import { SquarePSG } from "./psg/square";
 
 // Gameboy APU runs at the master clock of CPU (4.194304MHz) - Meaning that
 // it can output sound at that pace. Obviously, this is improbable to directly
 // tap into modern computer's audio, and it's impossible to hear that.
 // Instead, we'll down-sample 4.194304MHz into 32,768Hz. This means that APU
 // will generate signal for each 128 clocks.
-const SAMPLE_RATE = 44100;
+const SAMPLE_RATE = 32768;
 const CLOCKS_PER_SAMPLE = 4194304 / SAMPLE_RATE;
 const FRAMERATE = 60;
 const SAMPLE_SIZE = Math.ceil(SAMPLE_RATE / FRAMERATE);
@@ -14,22 +16,14 @@ const SAMPLE_WRITE_SIZE = Math.ceil(SAMPLE_RATE / FRAMERATE);
 
 const NR50 = 20;
 
-const DUTY_CYCLE_TABLE = [
-  0xFE, 0x7E, 0x78, 0x81,
-];
-
 export class APU implements Memory {
   audioContext: AudioContext | null;
   audioWorkletNode: AudioWorkletNode | null;
   buffer: Float32Array;
   clocks: number;
   bufferPos: number;
+  psgs: PSG[];
   aram: RAM;
-  waveClocks: number[];
-  waveClockDrifts: number[];
-  waveOutputs: number[];
-  sweepClock: number;
-  noiseLFSR: number;
 
   constructor() {
     this.audioContext = null;
@@ -37,12 +31,13 @@ export class APU implements Memory {
     this.buffer = new Float32Array(SAMPLE_SIZE * 2);
     this.clocks = 0;
     this.bufferPos = 0;
+    this.psgs = [
+      new SquarePSG(),
+      new SquarePSG(),
+      new SquarePSG(),
+      new SquarePSG(),
+    ];
     this.aram = new RAM(0x30);
-    this.waveClocks = [0, 0, 0, 0];
-    this.waveClockDrifts = [0, 0, 0, 0];
-    this.waveOutputs = [0, 0, 0, 0];
-    this.sweepClock = 0;
-    this.noiseLFSR = 0;
   }
 
   async setup(): Promise<void> {
@@ -63,51 +58,26 @@ export class APU implements Memory {
     this.buffer = new Float32Array(SAMPLE_SIZE * 2);
     this.clocks = 0;
     this.bufferPos = 0;
-    this.aram = new RAM(0x30);
-    this.waveClocks = [0, 0, 0, 0];
-    this.waveClockDrifts = [0, 0, 0, 0];
-    this.waveOutputs = [0, 0, 0, 0];
-    this.sweepClock = 0;
-    this.noiseLFSR = 0;
+    this.psgs.forEach((psg) => psg.reset());
   }
 
   read(pos: number): number {
+    const id = Math.floor(pos / 5);
+    if (id < 4) {
+      return this.psgs[id].read(pos % 5);
+    }
     return this.aram.read(pos);
   }
 
   write(pos: number, value: number): void {
-    let writeValue = value;
-    const aram = this.aram.bytes;
-    // Reset trigger
-    if (pos === 0x04 && (writeValue & 0x80)) {
-      this.waveClocks[0] = 0;
-      this.waveClockDrifts[0] = 0;
-      this.sweepClock = 0;
-      writeValue &= 0x47;
-      aram[NR50 + 2] |= 0x01;
+    const id = Math.floor(pos / 5);
+    if (id < 4) {
+      return this.psgs[id].write(pos % 5, value);
     }
-    if (pos === 0x09 && (writeValue & 0x80)) {
-      this.waveClocks[1] = 0;
-      this.waveClockDrifts[1] = 0;
-      writeValue &= 0x47;
-      aram[NR50 + 2] |= 0x02;
-    }
-    if (pos === 0x0e && (writeValue & 0x80)) {
-      this.waveClocks[2] = 0;
-      this.waveClockDrifts[2] = 0;
-      writeValue &= 0x47;
-      aram[NR50 + 2] |= 0x04;
-    }
-    if (pos === 0x13 && (writeValue & 0x80)) {
-      this.waveClocks[3] = 0;
-      this.waveClockDrifts[3] = 0;
-      this.noiseLFSR = 0;
-      writeValue &= 0x40;
-      aram[NR50 + 2] |= 0x08;
-    }
-    return this.aram.write(pos, writeValue);
+    return this.aram.write(pos, value);
   }
 
+  /*
   advanceStepWave(id: number, clocks: number): void {
     const aram = this.aram.bytes;
     const nr52 = aram[NR50 + 2];
@@ -233,15 +203,15 @@ export class APU implements Memory {
       }
     }
   }
+  */
 
-  advanceStep(clocks: number): void {
-    this.advanceStepWave(0, clocks);
-    this.advanceStepWave(1, clocks);
-    this.advanceStepWave(2, clocks);
-    this.advanceStepWave(3, clocks);
+  step(clocks: number): void {
+    for (let i = 0; i < this.psgs.length; i += 1) {
+      this.psgs[i].step(clocks);
+    }
   }
 
-  step(channel: number): number {
+  getOutput(channel: number): number {
     // NOTE: This is in the range of -1 ~ 1. Be aware of the dynamic range when
     // composing!
 
@@ -255,11 +225,9 @@ export class APU implements Memory {
     // const nr50 = aram[NR50];
 
     let output = 0;
-    if (nr51 & (1 << (channel * 4 + 0))) output += this.waveOutputs[0];
-    // if (nr51 & (1 << (channel * 4 + 1))) output += this.waveOutputs[1];
-    // if (nr51 & (1 << (channel * 4 + 2))) output += this.waveOutputs[2];
-    // if (nr51 & (1 << (channel * 4 + 3))) output += this.waveOutputs[3];
-
+    for (let i = 0; i < 4; i += 1) {
+      if (nr51 & (1 << (channel * 4 + i))) output += this.psgs[i].output;
+    }
     return output / 4;
   }
 
@@ -268,10 +236,10 @@ export class APU implements Memory {
     this.clocks += clocks;
     const futurePos = Math.floor(this.clocks / CLOCKS_PER_SAMPLE);
     while (this.bufferPos < futurePos) {
-      this.advanceStep(CLOCKS_PER_SAMPLE);
+      this.step(Math.floor(CLOCKS_PER_SAMPLE));
       for (let channel = 0; channel < 2; channel += 1) {
         const offset = SAMPLE_SIZE * channel;
-        this.buffer[offset + this.bufferPos] = this.step(channel);
+        this.buffer[offset + this.bufferPos] = this.getOutput(channel);
       }
       this.bufferPos += 1;
     }
@@ -279,10 +247,10 @@ export class APU implements Memory {
 
   finalize(): void {
     while (this.bufferPos < SAMPLE_WRITE_SIZE) {
-      this.advanceStep(CLOCKS_PER_SAMPLE);
+      this.step(Math.floor(CLOCKS_PER_SAMPLE));
       for (let channel = 0; channel < 2; channel += 1) {
         const offset = SAMPLE_SIZE * channel;
-        this.buffer[offset + this.bufferPos] = this.step(channel);
+        this.buffer[offset + this.bufferPos] = this.getOutput(channel);
       }
       this.bufferPos += 1;
     }
@@ -315,7 +283,10 @@ export class APU implements Memory {
 
   getDebugState(): string {
     let output = ['APU: '];
-    for (let i = 0; i < 0x30; i += 1) {
+    this.psgs.forEach((psg) => {
+      output.push(psg.getDebugState() + '\n');
+    });
+    for (let i = 0x20; i < 0x30; i += 1) {
       output.push(this.aram.bytes[i].toString(16).padStart(2, '0') + ' ');
       if (i % 0x10 === 0xf) {
         output.push('\n');

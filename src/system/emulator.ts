@@ -168,6 +168,7 @@ export class Emulator {
         buffer.push(this.cpu.memory.read(i).toString(16));
       }
       console.log(buffer);
+      console.log(this.apu.buffer);
     }
     this.debugTextElem.innerText = [
       `CLK: ${this.cpu.clocks}`,
@@ -183,6 +184,8 @@ export class Emulator {
 
     // Render the screen, sound, etc
     drawCanvas(this.lcd, this.ctx);
-    this.apu.finalize();
+    if (!this.isStepping) {
+      this.apu.finalize();
+    }
   }
 }
