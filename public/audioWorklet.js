@@ -1,4 +1,6 @@
-const BUFFER_SIZE = 4000;
+const BUFFER_SIZE = 8000;
+const RESUME_SIZE = 2000;
+const WAIT_SIZE = 1000;
 
 class MyAudioProcessor extends AudioWorkletProcessor {
   constructor() {
@@ -11,6 +13,9 @@ class MyAudioProcessor extends AudioWorkletProcessor {
     this.bufHead = 0;
     this.bufTail = 0;
     this.bufWriteTail = 0;
+    this.remaining = 0;
+    this.overwriteSize = 0;
+    this.waiting = false;
   }
 
   setup() {
@@ -34,21 +39,34 @@ class MyAudioProcessor extends AudioWorkletProcessor {
       }
       this.bufTail = (this.bufWriteTail + size) % BUFFER_SIZE;
       this.bufWriteTail = (this.bufWriteTail + writeSize) % BUFFER_SIZE;
+      this.remaining += size - this.overwriteSize;
+      this.overwriteSize = writeSize - size;
     }
   }
 
   process(inputList, outputList, parameters) {
     const output = outputList[0];
-    let headAddSize = 0;
+    if (this.remaining < WAIT_SIZE) {
+      this.waiting = true;
+    } else if (this.remaining > RESUME_SIZE) {
+      this.waiting = false;
+    }
+    let consumed = 0;
     for (let chanId = 0; chanId < output.length; chanId += 1) {
       const dest = output[chanId];
       const src = this.buffers[chanId];
+      consumed = 0;
       for (let i = 0; i < dest.length; i += 1) {
-        dest[i] = src[(i + this.bufHead) % BUFFER_SIZE];
+        if (!this.waiting) {
+          dest[i] = src[(i + this.bufHead) % BUFFER_SIZE];
+          consumed += 1;
+        } else {
+          dest[i] = 0;
+        }
       }
-      headAddSize = dest.length;
     }
-    this.bufHead = (this.bufHead + headAddSize) % BUFFER_SIZE;
+    this.remaining = this.remaining - consumed;
+    this.bufHead = (this.bufHead + consumed) % BUFFER_SIZE;
     return true;
   }
 };

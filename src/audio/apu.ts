@@ -6,10 +6,11 @@ import { Memory } from "../memory/types";
 // tap into modern computer's audio, and it's impossible to hear that.
 // Instead, we'll down-sample 4.194304MHz into 32,768Hz. This means that APU
 // will generate signal for each 128 clocks.
-const SAMPLE_RATE = 32768;
+const SAMPLE_RATE = 44100;
 const CLOCKS_PER_SAMPLE = 4194304 / SAMPLE_RATE;
-const SAMPLE_SIZE = Math.ceil(32768 / 60 * 1.5);
-const SAMPLE_WRITE_SIZE = Math.ceil(32768 / 60);
+const FRAMERATE = 60;
+const SAMPLE_SIZE = Math.ceil(SAMPLE_RATE / FRAMERATE);
+const SAMPLE_WRITE_SIZE = Math.ceil(SAMPLE_RATE / FRAMERATE);
 
 const NR50 = 20;
 
@@ -27,6 +28,7 @@ export class APU implements Memory {
   waveClocks: number[];
   waveClockDrifts: number[];
   waveOutputs: number[];
+  sweepClock: number;
   noiseLFSR: number;
 
   constructor() {
@@ -39,6 +41,7 @@ export class APU implements Memory {
     this.waveClocks = [0, 0, 0, 0];
     this.waveClockDrifts = [0, 0, 0, 0];
     this.waveOutputs = [0, 0, 0, 0];
+    this.sweepClock = 0;
     this.noiseLFSR = 0;
   }
 
@@ -47,7 +50,13 @@ export class APU implements Memory {
     this.audioContext = new AudioContext({ sampleRate: SAMPLE_RATE });
     await this.audioContext.audioWorklet.addModule('/audioWorklet.js');
     this.audioWorkletNode = new AudioWorkletNode(this.audioContext!, 'gb-passthrough');
-    this.audioWorkletNode!.connect(this.audioContext!.destination);
+    const biquadFilter = new BiquadFilterNode(this.audioContext!, {
+      type: 'highpass',
+      Q: 10,
+      frequency: 100,
+    });
+    this.audioWorkletNode!.connect(biquadFilter);
+    biquadFilter.connect(this.audioContext!.destination);
   }
 
   reset(): void {
@@ -58,6 +67,7 @@ export class APU implements Memory {
     this.waveClocks = [0, 0, 0, 0];
     this.waveClockDrifts = [0, 0, 0, 0];
     this.waveOutputs = [0, 0, 0, 0];
+    this.sweepClock = 0;
     this.noiseLFSR = 0;
   }
 
@@ -67,33 +77,45 @@ export class APU implements Memory {
 
   write(pos: number, value: number): void {
     let writeValue = value;
+    const aram = this.aram.bytes;
     // Reset trigger
     if (pos === 0x04 && (writeValue & 0x80)) {
       this.waveClocks[0] = 0;
       this.waveClockDrifts[0] = 0;
+      this.sweepClock = 0;
       writeValue &= 0x47;
+      aram[NR50 + 2] |= 0x01;
     }
     if (pos === 0x09 && (writeValue & 0x80)) {
       this.waveClocks[1] = 0;
       this.waveClockDrifts[1] = 0;
       writeValue &= 0x47;
+      aram[NR50 + 2] |= 0x02;
     }
     if (pos === 0x0e && (writeValue & 0x80)) {
       this.waveClocks[2] = 0;
       this.waveClockDrifts[2] = 0;
       writeValue &= 0x47;
+      aram[NR50 + 2] |= 0x04;
     }
     if (pos === 0x13 && (writeValue & 0x80)) {
       this.waveClocks[3] = 0;
       this.waveClockDrifts[3] = 0;
       this.noiseLFSR = 0;
       writeValue &= 0x40;
+      aram[NR50 + 2] |= 0x08;
     }
     return this.aram.write(pos, writeValue);
   }
 
   advanceStepWave(id: number, clocks: number): void {
     const aram = this.aram.bytes;
+    const nr52 = aram[NR50 + 2];
+    if (((nr52 >> id) & 0x1) === 0) {
+      // Turn off; don't do anything
+      this.waveOutputs[id] = 0;
+      return;
+    }
 
     const offset = id * 5;
     const nr10 = aram[offset]; // sweep
@@ -114,12 +136,21 @@ export class APU implements Memory {
         const sweepPace = (nr10 >> 4) & 0xf;
         const sweepDir = nr10 & 0x8;
         const sweepSlope = nr10 & 0x7;
-        const sweepId = Math.floor((waveClocks - waveClockDrifts) / (65536 * sweepPace));
+        const sweepId = Math.floor((waveClocks - this.sweepClock) / (65536 * sweepPace));
         if (sweepId > 0) {
           // Triggered
+          this.sweepClock = waveClocks;
+          const phase = (waveClocks - waveClockDrifts) / (32 * (2048 - wavelength));
           wavelength += wavelength / (1 << sweepSlope) * (sweepDir ? -1 : 1);
-          this.waveClockDrifts[id] = this.waveClocks[id];
-          waveClockDrifts = waveClocks;
+          waveClockDrifts = waveClocks - phase * (32 * (2048 - wavelength));
+          this.waveClockDrifts[id] = waveClockDrifts;
+          if (wavelength > 0x7ff) {
+            // Turn off output
+            aram[NR50 + 2] &= ~(1 << id);
+          } else {
+            aram[offset + 3] = wavelength & 0xff;
+            aram[offset + 4] = (wavelength >> 8) & 0x07;
+          }
         }
       }
     }
@@ -152,11 +183,11 @@ export class APU implements Memory {
         // The wavelength ticks the subfreq (1/8 of freq) at
         // 1048576 / (2048 - wavelen) Hz.
         // In other words, the clock alternates for each 4 * (2048 - wavelen) clocks
-        const waveSteps = Math.floor((waveClocks - waveClockDrifts) / (4 * (2048 - wavelength)));
+        const waveSteps = Math.floor((waveClocks) / (4 * (2048 - wavelength)));
 
         const substep = waveSteps % 8;
         const signal = (DUTY_CYCLE_TABLE[waveDuty] >> (7 - substep)) & 1;
-        this.waveOutputs[id] = (signal ? 1 : -1) * (waveVolume / 0xf);
+        this.waveOutputs[id] = (signal ? -1 : 1) * (waveVolume / 0xf);
         break;
       }
       case 2: {
@@ -175,7 +206,7 @@ export class APU implements Memory {
         const readNibble = substep & 1;
         const byte = aram[0x20 + readId];
         const signal = ((byte >> (readNibble ? 0 : 4)) & 0xf) / 0xf;
-        this.waveOutputs[id] = (signal * 2 - 1) * (waveVolume / 0x3) * 4;
+        this.waveOutputs[id] = (signal * 2 - 1) * (waveVolume / 0x3);
         break;
       }
       case 3: {
@@ -197,7 +228,7 @@ export class APU implements Memory {
           waveClockDrifts = waveClocks;
         }
         const signal = this.noiseLFSR & 1;
-        this.waveOutputs[id] = (signal ? 1 : -1) * (waveVolume / 0xf) / 2;
+        this.waveOutputs[id] = (signal ? 1 : -1) * (waveVolume / 0xf) / 4;
         break;
       }
     }
@@ -225,9 +256,9 @@ export class APU implements Memory {
 
     let output = 0;
     if (nr51 & (1 << (channel * 4 + 0))) output += this.waveOutputs[0];
-    if (nr51 & (1 << (channel * 4 + 1))) output += this.waveOutputs[1];
-    if (nr51 & (1 << (channel * 4 + 2))) output += this.waveOutputs[2];
-    if (nr51 & (1 << (channel * 4 + 3))) output += this.waveOutputs[3];
+    // if (nr51 & (1 << (channel * 4 + 1))) output += this.waveOutputs[1];
+    // if (nr51 & (1 << (channel * 4 + 2))) output += this.waveOutputs[2];
+    // if (nr51 & (1 << (channel * 4 + 3))) output += this.waveOutputs[3];
 
     return output / 4;
   }
@@ -255,6 +286,7 @@ export class APU implements Memory {
       }
       this.bufferPos += 1;
     }
+    /*
     const waveClocksCopy = this.waveClocks.slice();
     const waveClockDriftsCopy = this.waveClockDrifts.slice();
     // Create overflown buffer
@@ -268,6 +300,7 @@ export class APU implements Memory {
     }
     this.waveClocks = waveClocksCopy;
     this.waveClockDrifts = waveClockDriftsCopy;
+    */
     if (this.audioWorkletNode != null) {
       this.audioWorkletNode.port.postMessage({
         buffer: this.buffer,
@@ -279,7 +312,7 @@ export class APU implements Memory {
     this.bufferPos = 0;
     this.clocks = 0;
   }
-  
+
   getDebugState(): string {
     let output = ['APU: '];
     for (let i = 0; i < 0x30; i += 1) {
