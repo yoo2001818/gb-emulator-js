@@ -1,5 +1,7 @@
 import { RAM } from "../memory/ram";
 import { Memory } from "../memory/types";
+import { NoisePSG } from "./psg/noise";
+import { PCMPSG } from "./psg/pcm";
 import { PSG } from "./psg/psg";
 import { SquarePSG } from "./psg/square";
 
@@ -23,6 +25,7 @@ export class APU implements Memory {
   clocks: number;
   bufferPos: number;
   psgs: PSG[];
+  waveTable: RAM;
   aram: RAM;
 
   constructor() {
@@ -31,11 +34,12 @@ export class APU implements Memory {
     this.buffer = new Float32Array(SAMPLE_SIZE * 2);
     this.clocks = 0;
     this.bufferPos = 0;
+    this.waveTable = new RAM(0x10);
     this.psgs = [
       new SquarePSG(),
       new SquarePSG(),
-      new SquarePSG(),
-      new SquarePSG(),
+      new PCMPSG(this.waveTable),
+      new NoisePSG(),
     ];
     this.aram = new RAM(0x30);
   }
@@ -58,6 +62,7 @@ export class APU implements Memory {
     this.buffer = new Float32Array(SAMPLE_SIZE * 2);
     this.clocks = 0;
     this.bufferPos = 0;
+    this.waveTable.reset();
     this.psgs.forEach((psg) => psg.reset());
   }
 
@@ -65,6 +70,9 @@ export class APU implements Memory {
     const id = Math.floor(pos / 5);
     if (id < 4) {
       return this.psgs[id].read(pos % 5);
+    }
+    if (pos >= 0x20) {
+      return this.waveTable.read(pos - 0x20);
     }
     return this.aram.read(pos);
   }
@@ -74,136 +82,11 @@ export class APU implements Memory {
     if (id < 4) {
       return this.psgs[id].write(pos % 5, value);
     }
+    if (pos >= 0x20) {
+      return this.waveTable.write(pos - 0x20, value);
+    }
     return this.aram.write(pos, value);
   }
-
-  /*
-  advanceStepWave(id: number, clocks: number): void {
-    const aram = this.aram.bytes;
-    const nr52 = aram[NR50 + 2];
-    if (((nr52 >> id) & 0x1) === 0) {
-      // Turn off; don't do anything
-      this.waveOutputs[id] = 0;
-      return;
-    }
-
-    const offset = id * 5;
-    const nr10 = aram[offset]; // sweep
-    const nr11 = aram[offset + 1]; // length timer & duty cycle
-    const nr12 = aram[offset + 2]; // volume & envelope
-    const nr13 = aram[offset + 3]; // wavelength low
-    const nr14 = aram[offset + 4]; // wavelength high & control
-
-    let wavelength = nr13 | ((nr14 & 0x07) << 8);
-    this.waveClocks[id] += clocks;
-    let waveClocks = this.waveClocks[id];
-    let waveClockDrifts = this.waveClockDrifts[id];
-
-    // Sweep is only allowed in 1th channel
-    if (id === 0) {
-      // Compute sweep
-      if (nr10 & 0x7) {
-        const sweepPace = (nr10 >> 4) & 0xf;
-        const sweepDir = nr10 & 0x8;
-        const sweepSlope = nr10 & 0x7;
-        const sweepId = Math.floor((waveClocks - this.sweepClock) / (65536 * sweepPace));
-        if (sweepId > 0) {
-          // Triggered
-          this.sweepClock = waveClocks;
-          const phase = (waveClocks - waveClockDrifts) / (32 * (2048 - wavelength));
-          wavelength += wavelength / (1 << sweepSlope) * (sweepDir ? -1 : 1);
-          waveClockDrifts = waveClocks - phase * (32 * (2048 - wavelength));
-          this.waveClockDrifts[id] = waveClockDrifts;
-          if (wavelength > 0x7ff) {
-            // Turn off output
-            aram[NR50 + 2] &= ~(1 << id);
-          } else {
-            aram[offset + 3] = wavelength & 0xff;
-            aram[offset + 4] = (wavelength >> 8) & 0x07;
-          }
-        }
-      }
-    }
-
-    // Envelope generation
-    const waveInitialVolume = ((nr12 >> 4) & 0xf);
-    const waveEnvelopeDir = nr12 & 0x8;
-    const waveSweepPace = nr12 & 0x3;
-    let waveVolume = waveInitialVolume;
-    if (waveSweepPace > 0) {
-      // Envelope timer increments by 64 Hz (every 65536 clocks)
-      let envelope = Math.floor(waveClocks / (65536 * waveSweepPace));
-      if (!waveEnvelopeDir) envelope = -envelope;
-      waveVolume = Math.min(0xf, Math.max(0, waveInitialVolume + envelope));
-    }
-
-    const waveDuty = (nr11 >> 6) & 0x3;
-    const waveTimer = nr11 & 0x3f;
-    // Wave timer increments by 256 Hz (every 16384 clocks)
-    const isWavePlaying =
-      (!(nr14 & 0x40) || ((waveTimer + Math.floor(waveClocks / 16384)) < 64));
-    if (!isWavePlaying) {
-      this.waveOutputs[id] = 0;
-      return;
-    }
-
-    switch (id) {
-      case 0:
-      case 1: {
-        // The wavelength ticks the subfreq (1/8 of freq) at
-        // 1048576 / (2048 - wavelen) Hz.
-        // In other words, the clock alternates for each 4 * (2048 - wavelen) clocks
-        const waveSteps = Math.floor((waveClocks) / (4 * (2048 - wavelength)));
-
-        const substep = waveSteps % 8;
-        const signal = (DUTY_CYCLE_TABLE[waveDuty] >> (7 - substep)) & 1;
-        this.waveOutputs[id] = (signal ? -1 : 1) * (waveVolume / 0xf);
-        break;
-      }
-      case 2: {
-        let waveVolume = (nr12 >> 5) & 0x3;
-        // Don't do anything if DAC is off
-        if ((nr10 & 0x80) === 0) {
-          this.waveOutputs[id] = 0;
-          this.waveClockDrifts[id] = waveClocks;
-          return;
-        }
-        // The wavelength ticks the subfreq (1/32 of freq) at
-        // 2097152 / (2048 - wavelen) Hz -> 2 * (2048 - wavelen) clocks
-        const waveSteps = Math.floor((waveClocks - waveClockDrifts) / (2 * (2048 - wavelength)));
-        const substep = waveSteps % 32;
-        const readId = substep >> 1;
-        const readNibble = substep & 1;
-        const byte = aram[0x20 + readId];
-        const signal = ((byte >> (readNibble ? 0 : 4)) & 0xf) / 0xf;
-        this.waveOutputs[id] = (signal * 2 - 1) * (waveVolume / 0x3);
-        break;
-      }
-      case 3: {
-        // Noise channel; we only use LR43 to generate signal
-        const clockShift = nr13 >> 4;
-        const lfsrWidth = nr13 & 0x08;
-        const clockDivider = nr13 & 0x07;
-        // The clock is 262144 / (r * (2^s)) Hz, where r is 0.5 when r = 0
-        // Meaning that this is triggered every 16 * r * 2^s clocks.
-        const clockN = 16 * (clockDivider ? clockDivider : 0.5) * (1 << clockShift);
-        const clockId = Math.floor((waveClocks - waveClockDrifts) / clockN);
-        if (clockId > 0) {
-          // Triggered
-          const setBit = lfsrWidth ? 0x8080 : 0x8000;
-          let lfsr = this.noiseLFSR;
-          lfsr = lfsr | (((lfsr & 1) !== ((lfsr >> 1) & 1)) ? 0 : setBit);
-          lfsr = lfsr >>> 1;
-          this.noiseLFSR = lfsr;
-          waveClockDrifts = waveClocks;
-        }
-        const signal = this.noiseLFSR & 1;
-        this.waveOutputs[id] = (signal ? 1 : -1) * (waveVolume / 0xf) / 4;
-        break;
-      }
-    }
-  }
-  */
 
   step(clocks: number): void {
     for (let i = 0; i < this.psgs.length; i += 1) {
@@ -286,8 +169,8 @@ export class APU implements Memory {
     this.psgs.forEach((psg) => {
       output.push(psg.getDebugState() + '\n');
     });
-    for (let i = 0x20; i < 0x30; i += 1) {
-      output.push(this.aram.bytes[i].toString(16).padStart(2, '0') + ' ');
+    for (let i = 0; i < 0x10; i += 1) {
+      output.push(this.waveTable.bytes[i].toString(16).padStart(2, '0') + ' ');
       if (i % 0x10 === 0xf) {
         output.push('\n');
       }

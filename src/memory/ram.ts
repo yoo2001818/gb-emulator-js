@@ -18,4 +18,8 @@ export class RAM implements Memory {
   write(pos: number, value: number): void {
     this.bytes[pos % this.size] = value;
   }
+
+  reset(): void {
+    this.bytes.fill(0);
+  }
 }

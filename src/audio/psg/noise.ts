@@ -1,27 +1,21 @@
 import { EnvelopePSGModule } from "./envelope";
 import { LengthPSGModule } from "./length";
 import { PSG } from "./psg";
-import { SweepPSGModule } from "./sweep";
 
-const DUTY_CYCLE_TABLE = [
-  0xFE, 0x7E, 0x78, 0x81,
-];
-
-export class SquarePSG implements PSG {
+export class NoisePSG implements PSG {
   output: number = 0;
   enabled: boolean = false;
 
-  phase: number = 0;
   phaseClock: number = 0;
-  wavelength: number = 0;
-  dutyCycle: number = 0;
+  clockShift: number = 0;
+  clockDivider: number = 0;
+  lfsr: number = 0;
+  lfsr7Bit: boolean = false;
 
-  sweep: SweepPSGModule;
   envelope: EnvelopePSGModule;
   length: LengthPSGModule;
 
   constructor() {
-    this.sweep = new SweepPSGModule(this);
     this.envelope = new EnvelopePSGModule();
     this.length = new LengthPSGModule(this);
     this.reset();
@@ -31,12 +25,12 @@ export class SquarePSG implements PSG {
     this.output = 0;
     this.enabled = false;
 
-    this.phase = 0;
     this.phaseClock = 0;
-    this.wavelength = 0;
-    this.dutyCycle = 0;
+    this.clockShift = 0;
+    this.clockDivider = 0;
+    this.lfsr = 0;
+    this.lfsr7Bit = false;
 
-    this.sweep.reset();
     this.envelope.reset();
     this.length.reset();
   }
@@ -44,16 +38,15 @@ export class SquarePSG implements PSG {
   trigger(): void {
     this.output = 0;
     this.enabled = true;
-    this.phase = 0;
     this.phaseClock = 0;
-    this.sweep.trigger();
+    this.lfsr = 0;
     this.envelope.trigger();
     this.length.trigger();
   }
 
   getDebugState(): string {
     return [
-      `E: ${this.enabled} WL: ${this.wavelength} DC: ${this.dutyCycle}`,
+      `E: ${this.enabled} S: ${this.clockShift} D: ${this.clockDivider}`,
     ].join('\n');
   }
 
@@ -62,21 +55,29 @@ export class SquarePSG implements PSG {
     while (remainingClocks > 0) {
       if (!this.enabled) break;
       // Calculate clocks for each trigger
-      const phaseWidth = 4 * (2048 - this.wavelength);
+      // The clock is 262144 / (r * (2^s)) Hz, where r is 0.5 when r = 0
+      // Meaning that this is triggered every 16 * r * 2^s clocks.
+      let r = this.clockDivider;
+      if (r === 0) r = 0.5;
+      const phaseWidth = 16 * r * (1 << this.clockShift);
       const phaseRemaining = phaseWidth - this.phaseClock;
 
       // Calculate the smallest trigger
       let consumedClocks = Math.min(phaseRemaining, remainingClocks);
-      consumedClocks = this.sweep.getNextClocks(consumedClocks);
       consumedClocks = this.envelope.getNextClocks(consumedClocks);
       consumedClocks = this.length.getNextClocks(consumedClocks);
 
       this.phaseClock += consumedClocks;
       if (this.phaseClock >= phaseWidth) {
         this.phaseClock = 0;
-        this.phase = (this.phase + 1) % 8;
+
+        // Update LFSR
+        const setBit = this.lfsr7Bit ? 0x8080 : 0x8000;
+        let lfsr = this.lfsr
+        lfsr = lfsr | (((lfsr & 1) !== ((lfsr >> 1) & 1)) ? 0 : setBit);
+        lfsr = lfsr >>> 1;
+        this.lfsr = lfsr;
       }
-      this.sweep.step(consumedClocks);
       this.envelope.step(consumedClocks);
       this.length.step(consumedClocks);
 
@@ -84,7 +85,7 @@ export class SquarePSG implements PSG {
     }
     // Calculate current output
     if (this.enabled) {
-      const signal = (DUTY_CYCLE_TABLE[this.dutyCycle] >> (7 - this.phase)) & 1;
+      const signal = this.lfsr & 1;
       this.output = (signal ? -1 : 1) * this.envelope.get();
     } else {
       this.output = 0;
@@ -93,16 +94,13 @@ export class SquarePSG implements PSG {
 
   _read(pos: number): number {
     switch (pos) {
-      case 1: 
-        // NR11 - Length timer & duty cycle
-        return 0x100 | ((this.dutyCycle & 0x3) << 6);
       case 3:
-        // NR13 - Wavelength low
-        return 0x100 | (this.wavelength & 0xff);
-      case 4: {
-        // NR14 - Wavelength high & control
-        return 0x100 | ((this.wavelength >> 8) & 0x7);
-      }
+        // NR13 - Frequency & randomness
+        let output = 0x100;
+        output |= (this.clockShift & 0xf) << 4;
+        if (this.lfsr7Bit) output |= 0x8;
+        output |= this.clockDivider & 0x7;
+        return output;
       default:
         return 0;
     }
@@ -110,7 +108,6 @@ export class SquarePSG implements PSG {
 
   read(pos: number): number {
     let output = this._read(pos);
-    output |= this.sweep.read(pos);
     output |= this.envelope.read(pos);
     output |= this.length.read(pos);
     if (output & 0x100) return output;
@@ -119,17 +116,14 @@ export class SquarePSG implements PSG {
 
   _write(pos: number, value: number): void {
     switch (pos) {
-      case 1: 
-        // NR11 - Length timer & duty cycle
-        this.dutyCycle = (value >> 6) & 0x3;
-        break;
       case 3:
-        // NR13 - Wavelength low
-        this.wavelength = (this.wavelength & 0x700) | (value & 0xff);
+        // NR13 - Frequency & randomness
+        this.clockShift = (value >> 4) & 0xf;
+        this.lfsr7Bit = (value & 0x8) !== 0;
+        this.clockDivider = value & 0x7;
         break;
       case 4: 
-        // NR14 - Wavelength high & control
-        this.wavelength = (this.wavelength & 0xff) | ((value & 0x7) << 8);
+        // NR44 - Control
         if (value & 0x80) this.trigger();
         break;
     }
@@ -137,7 +131,6 @@ export class SquarePSG implements PSG {
 
   write(pos: number, value: number): void {
     this._write(pos, value);
-    this.sweep.write(pos, value);
     this.envelope.write(pos, value);
     this.length.write(pos, value);
   }
