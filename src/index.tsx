@@ -34,7 +34,7 @@ async function start() {
   canvas.style.height = `${LCD_HEIGHT * 2}px`;
   const emulator = new Emulator(canvas);
   const rom = await loadROM();
-  emulator.load(rom);
+  await emulator.load(rom);
   emulator.reboot();
   emulator.start();
   
@@ -107,10 +107,10 @@ async function start() {
     if (files[0] != null) {
       const file = files[0];
       const reader = new FileReader();
-      reader.onload = (e2) => {
+      reader.onload = async (e2) => {
         const array_buffer = e2.target!.result as ArrayBuffer;
         const buffer = new Uint8Array(array_buffer);
-        emulator.load(buffer);
+        await emulator.load(buffer);
         emulator.reboot();
         emulator.start();
       };

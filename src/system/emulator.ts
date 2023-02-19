@@ -1,4 +1,5 @@
 import { APU } from '../audio/apu';
+import { readCartridgeInfo } from '../cartridge/info';
 import { REGISTER } from '../cpu/constants';
 import { CPU } from '../cpu/cpu';
 import { LCD } from '../lcd/lcd';
@@ -43,8 +44,10 @@ export class Emulator {
     this.debugTextElem.style.fontFamily = 'monospace';
   }
 
-  load(rom: Uint8Array) {
+  async load(rom: Uint8Array) {
     // TODO: Read ROM data and provide proper bank controller
+    const cartridgeInfo = await readCartridgeInfo(rom);
+    console.log(cartridgeInfo);
     const cartridgeType = rom[0x147];
     switch (cartridgeType) {
       case 0x19:
