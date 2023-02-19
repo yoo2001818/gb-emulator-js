@@ -48,8 +48,13 @@ export class PCMPSG implements PSG {
 
   getDebugState(): string {
     return [
-      `E: ${this.enabled} WL: ${this.wavelength} V: ${this.outputLevel}`,
-    ].join('\n');
+      `E: ${this.enabled ? '1' : '0'} WL: ${this.wavelength.toString(16).padStart(3, '0')} (${this.getHz()}Hz) V: ${this.outputLevel}`,
+      this.length.getDebugState(),
+    ].join(' ');
+  }
+  
+  getHz(): number {
+    return Math.floor((4 * 1024 * 1024) / (32 * 2 * (2048 - this.wavelength)));
   }
 
   step(clocks: number): void {

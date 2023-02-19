@@ -27,6 +27,10 @@ export class LengthPSGModule implements PSGModule {
     this.clock = 0;
   }
 
+  getDebugState(): string {
+    return `L: ${this.enabled ? this.currentLength.toString(16).padStart(2, '0') : '-1'}`;
+  }
+
   getNextClocks(clocks: number): number {
     if (!this.enabled) return clocks;
     const width = 16384;

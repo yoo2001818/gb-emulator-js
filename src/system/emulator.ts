@@ -177,7 +177,7 @@ export class Emulator {
       this.lcd.getDebugState(),
       this.timer.getDebugState(),
       this.cartridge.getDebugState(),
-      `STACK: ${this.readStack(20)}`,
+      `Stack: ${this.readStack(20)}`,
       this.apu.getDebugState(),
     ].join('\n');
     // this.isRunning = false;

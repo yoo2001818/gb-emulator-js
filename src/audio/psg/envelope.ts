@@ -20,6 +20,10 @@ export class EnvelopePSGModule implements PSGModule {
     this.clock = 0;
   }
 
+  getDebugState(): string {
+    return `V: ${this.currentVolume.toString(16)} EP: ${this.increasing ? '+' : '-'}${this.pace.toString(16)}`;
+  }
+
   get(): number {
     return this.currentVolume / 0xf;
   }

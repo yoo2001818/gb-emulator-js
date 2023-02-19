@@ -1,6 +1,6 @@
-const BUFFER_SIZE = 8000;
-const RESUME_SIZE = 2000;
-const WAIT_SIZE = 1000;
+const BUFFER_SIZE = 2048;
+const RESUME_SIZE = 256;
+const WAIT_SIZE = 128;
 
 class MyAudioProcessor extends AudioWorkletProcessor {
   constructor() {
@@ -29,6 +29,10 @@ class MyAudioProcessor extends AudioWorkletProcessor {
       const src = data.buffer;
       const size = data.size;
       const writeSize = data.writeSize;
+      if ((this.remaining + data.size) > BUFFER_SIZE) {
+        // Buffer overrun!
+        return;
+      }
       // Append buffer
       for (let chanId = 0; chanId < 2; chanId += 1) {
         const srcOffset = chanId * size;

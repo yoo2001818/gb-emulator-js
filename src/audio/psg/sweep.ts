@@ -27,6 +27,10 @@ export class SweepPSGModule implements PSGModule {
     this.clock = 0;
   }
 
+  getDebugState(): string {
+    return `SP: ${this.increasing ? '+' : '-'}${this.pace.toString(16)} ${this.slope.toString(16)}`;
+  }
+
   getNextClocks(clocks: number): number {
     if (this.pace === 0) return clocks;
     const width = 65536 * this.pace;

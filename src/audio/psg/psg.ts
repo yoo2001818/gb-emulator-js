@@ -1,6 +1,7 @@
 import { Memory } from "../../memory/types";
 
 export interface PSG extends Memory {
+  enabled: boolean;
   output: number;
   reset(): void;
   trigger(): void;

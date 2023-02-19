@@ -20,7 +20,10 @@ export class SquarePSG implements PSG {
   envelope: EnvelopePSGModule;
   length: LengthPSGModule;
 
-  constructor() {
+  hasSweep: boolean;
+
+  constructor(hasSweep?: boolean) {
+    this.hasSweep = hasSweep ?? true;
     this.sweep = new SweepPSGModule(this);
     this.envelope = new EnvelopePSGModule();
     this.length = new LengthPSGModule(this);
@@ -53,8 +56,15 @@ export class SquarePSG implements PSG {
 
   getDebugState(): string {
     return [
-      `E: ${this.enabled} WL: ${this.wavelength} DC: ${this.dutyCycle}`,
-    ].join('\n');
+      `E: ${this.enabled ? '1' : '0'} WL: ${this.wavelength.toString(16).padStart(3, '0')} (${this.getHz()}Hz) DC: ${this.dutyCycle}`,
+      this.hasSweep ? this.sweep.getDebugState() : '',
+      this.envelope.getDebugState(),
+      this.length.getDebugState(),
+    ].filter((v) => v !== '').join(' ');
+  }
+  
+  getHz(): number {
+    return Math.floor((4 * 1024 * 1024) / (8 * 4 * (2048 - this.wavelength)));
   }
 
   step(clocks: number): void {
@@ -67,7 +77,7 @@ export class SquarePSG implements PSG {
 
       // Calculate the smallest trigger
       let consumedClocks = Math.min(phaseRemaining, remainingClocks);
-      consumedClocks = this.sweep.getNextClocks(consumedClocks);
+      if (this.hasSweep) consumedClocks = this.sweep.getNextClocks(consumedClocks);
       consumedClocks = this.envelope.getNextClocks(consumedClocks);
       consumedClocks = this.length.getNextClocks(consumedClocks);
 
@@ -76,7 +86,7 @@ export class SquarePSG implements PSG {
         this.phaseClock = 0;
         this.phase = (this.phase + 1) % 8;
       }
-      this.sweep.step(consumedClocks);
+      if (this.hasSweep) this.sweep.step(consumedClocks);
       this.envelope.step(consumedClocks);
       this.length.step(consumedClocks);
 
@@ -110,7 +120,7 @@ export class SquarePSG implements PSG {
 
   read(pos: number): number {
     let output = this._read(pos);
-    output |= this.sweep.read(pos);
+    if (this.hasSweep) output |= this.sweep.read(pos);
     output |= this.envelope.read(pos);
     output |= this.length.read(pos);
     if (output & 0x100) return output;
@@ -137,7 +147,7 @@ export class SquarePSG implements PSG {
 
   write(pos: number, value: number): void {
     this._write(pos, value);
-    this.sweep.write(pos, value);
+    if (this.hasSweep) this.sweep.write(pos, value);
     this.envelope.write(pos, value);
     this.length.write(pos, value);
   }

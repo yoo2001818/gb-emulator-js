@@ -16,8 +16,6 @@ const FRAMERATE = 60;
 const SAMPLE_SIZE = Math.ceil(SAMPLE_RATE / FRAMERATE);
 const SAMPLE_WRITE_SIZE = Math.ceil(SAMPLE_RATE / FRAMERATE);
 
-const NR50 = 20;
-
 export class APU implements Memory {
   audioContext: AudioContext | null;
   audioWorkletNode: AudioWorkletNode | null;
@@ -26,7 +24,9 @@ export class APU implements Memory {
   bufferPos: number;
   psgs: PSG[];
   waveTable: RAM;
-  aram: RAM;
+  nr50: number;
+  nr51: number;
+  nr52: number;
 
   constructor() {
     this.audioContext = null;
@@ -37,11 +37,13 @@ export class APU implements Memory {
     this.waveTable = new RAM(0x10);
     this.psgs = [
       new SquarePSG(),
-      new SquarePSG(),
+      new SquarePSG(false),
       new PCMPSG(this.waveTable),
       new NoisePSG(),
     ];
-    this.aram = new RAM(0x30);
+    this.nr50 = 0;
+    this.nr51 = 0;
+    this.nr52 = 0;
   }
 
   async setup(): Promise<void> {
@@ -64,6 +66,9 @@ export class APU implements Memory {
     this.bufferPos = 0;
     this.waveTable.reset();
     this.psgs.forEach((psg) => psg.reset());
+    this.nr50 = 0;
+    this.nr51 = 0;
+    this.nr52 = 0;
   }
 
   read(pos: number): number {
@@ -74,7 +79,21 @@ export class APU implements Memory {
     if (pos >= 0x20) {
       return this.waveTable.read(pos - 0x20);
     }
-    return this.aram.read(pos);
+    switch (pos) {
+      case 0x14:
+        return this.nr50;
+      case 0x15:
+        return this.nr51;
+      case 0x16: {
+        let output = this.nr52;
+        for (let i = 0; i < this.psgs.length; i += 1) {
+          if (this.psgs[i].enabled) output |= (1 << i);
+        }
+        return output;
+      }
+      default:
+        return 0xff;
+    }
   }
 
   write(pos: number, value: number): void {
@@ -85,32 +104,46 @@ export class APU implements Memory {
     if (pos >= 0x20) {
       return this.waveTable.write(pos - 0x20, value);
     }
-    return this.aram.write(pos, value);
+    switch (pos) {
+      case 0x14:
+        this.nr50 = value;
+        break;
+      case 0x15:
+        this.nr51 = value;
+        break;
+      case 0x16:
+        this.nr52 = value & 0x80;
+        break;
+    }
   }
 
   step(clocks: number): void {
+    // NR52 Bit 7: All sound on/off
+    if ((this.nr52 & 0x80) === 0) return;
     for (let i = 0; i < this.psgs.length; i += 1) {
       this.psgs[i].step(clocks);
     }
   }
 
   getOutput(channel: number): number {
-    // NOTE: This is in the range of -1 ~ 1. Be aware of the dynamic range when
-    // composing!
-
-    const aram = this.aram.bytes;
-    const nr52 = aram[NR50 + 2];
     // NR52 Bit 7: All sound on/off
-    if ((nr52 & 0x80) === 0) return 0;
+    if ((this.nr52 & 0x80) === 0) return 0;
     // NR51: Sound panning
-    const nr51 = aram[NR50 + 1];
+    const nr51 = this.nr51;
     // NR50: Master volume, VIN panning
-    // const nr50 = aram[NR50];
+    const nr50 = this.nr50;
 
     let output = 0;
     for (let i = 0; i < 4; i += 1) {
       if (nr51 & (1 << (channel * 4 + i))) output += this.psgs[i].output;
     }
+
+    if (channel === 0) {
+      output *= ((nr50 >>> 4) & 0x7) / 0x7;
+    } else {
+      output *= (nr50 & 0x7) / 0x7;
+    }
+
     return output / 4;
   }
 
@@ -137,21 +170,6 @@ export class APU implements Memory {
       }
       this.bufferPos += 1;
     }
-    /*
-    const waveClocksCopy = this.waveClocks.slice();
-    const waveClockDriftsCopy = this.waveClockDrifts.slice();
-    // Create overflown buffer
-    while (this.bufferPos < SAMPLE_SIZE) {
-      this.advanceStep(CLOCKS_PER_SAMPLE);
-      for (let channel = 0; channel < 2; channel += 1) {
-        const offset = SAMPLE_SIZE * channel;
-        this.buffer[offset + this.bufferPos] = this.step(channel);
-      }
-      this.bufferPos += 1;
-    }
-    this.waveClocks = waveClocksCopy;
-    this.waveClockDrifts = waveClockDriftsCopy;
-    */
     if (this.audioWorkletNode != null) {
       this.audioWorkletNode.port.postMessage({
         buffer: this.buffer,
@@ -165,12 +183,14 @@ export class APU implements Memory {
   }
 
   getDebugState(): string {
-    let output = ['APU: '];
-    this.psgs.forEach((psg) => {
-      output.push(psg.getDebugState() + '\n');
+    let output = [];
+    this.psgs.forEach((psg, i) => {
+      output.push(`NR${i + 1}: ` + psg.getDebugState() + '\n');
     });
+    output.push(`NR5: V: ${this.nr50.toString(16).padStart(2, '0')} P: ${this.nr51.toString(16).padStart(2, '0')} E: ${(this.nr52 & 0x80) !== 0}\n`);
+    output.push('Wave: ');
     for (let i = 0; i < 0x10; i += 1) {
-      output.push(this.waveTable.bytes[i].toString(16).padStart(2, '0') + ' ');
+      output.push(this.waveTable.bytes[i].toString(16).padStart(2, '0'));
       if (i % 0x10 === 0xf) {
         output.push('\n');
       }

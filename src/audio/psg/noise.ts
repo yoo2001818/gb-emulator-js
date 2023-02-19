@@ -45,9 +45,15 @@ export class NoisePSG implements PSG {
   }
 
   getDebugState(): string {
+    let r = this.clockDivider;
+    if (r === 0) r = 0.5;
+    const phaseWidth = 16 * r * (1 << this.clockShift);
+    const hz = Math.floor((4 * 1024 * 1024) / phaseWidth);
     return [
-      `E: ${this.enabled} S: ${this.clockShift} D: ${this.clockDivider}`,
-    ].join('\n');
+      `E: ${this.enabled ? '1' : '0'} S: ${this.clockShift} D: ${this.clockDivider} (${hz}Hz)`,
+      this.envelope.getDebugState(),
+      this.length.getDebugState(),
+    ].join(' ');
   }
 
   step(clocks: number): void {
