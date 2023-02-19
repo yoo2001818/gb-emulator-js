@@ -1,6 +1,6 @@
-import { Memory } from './types';
+import { MemoryBankController } from './mbc';
 
-export class MBC3 implements Memory {
+export class MBC3 implements MemoryBankController {
   rom: Uint8Array;
   ram: Uint8Array;
   romBank: number = 1;
@@ -8,10 +8,19 @@ export class MBC3 implements Memory {
   ramEnabled: boolean = true;
   initialTime: number = Date.now();
   latchedTime: Date | null = null;
+  ramUpdated: boolean = false;
 
   constructor(rom: Uint8Array, ram: Uint8Array) {
     this.rom = rom;
     this.ram = ram;
+  }
+
+  loadRAM(ram: Uint8Array): void {
+    this.ram = ram;
+  }
+
+  serializeRAM(): Uint8Array {
+    return this.ram;
   }
 
   getDebugState(): string {
@@ -97,10 +106,17 @@ export class MBC3 implements Memory {
     if (pos < 0xC000) {
       if (this.ramBank < 3) {
         this.ram[(this.ramBank * 0x2000 + (pos - 0xA000)) % this.ram.length] = value;
+        this.ramUpdated = true;
       } else {
         // RTC Access
         // FIXME: Implement this
       }
     }
+  }
+
+  reset(): void {
+    // NOTE: Don't reset SRAM
+    this.romBank = 0;
+    this.ramBank = 0;
   }
 }

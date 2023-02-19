@@ -80,6 +80,23 @@ async function start() {
       }
       case 'r': {
         dumpVRAM(emulator.lcd);
+        break;
+      }
+      case '1': {
+        const data = emulator.getSRAM();
+        if (data != null) {
+          // TODO: Cleanup
+          const blob = new Blob([data]);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = emulator.cartridge!.info.title + '.sav';
+          document.body.appendChild(a);
+          a.style.display = 'none';
+          a.click();
+          a.remove();
+        }
+        break;
       }
     }
     const mappedButton = CONTROLS_MAP[e.key];
@@ -110,9 +127,15 @@ async function start() {
       reader.onload = async (e2) => {
         const array_buffer = e2.target!.result as ArrayBuffer;
         const buffer = new Uint8Array(array_buffer);
-        await emulator.load(buffer);
-        emulator.reboot();
-        emulator.start();
+        if (file.name.endsWith('.sav')) {
+          emulator.loadSRAMFromFile(buffer);
+          emulator.reboot();
+          emulator.start();
+        } else {
+          await emulator.load(buffer);
+          emulator.reboot();
+          emulator.start();
+        }
       };
       reader.readAsArrayBuffer(file);
     }

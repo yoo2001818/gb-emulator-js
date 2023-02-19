@@ -1,27 +1,28 @@
 import { APU } from '../audio/apu';
-import { readCartridgeInfo } from '../cartridge/info';
 import { REGISTER } from '../cpu/constants';
 import { CPU } from '../cpu/cpu';
 import { LCD } from '../lcd/lcd';
-import { MBC3 } from '../memory/mbc3';
-import { MBC5 } from '../memory/mbc5';
 import { MemoryBus } from '../memory/memoryBus';
 import { RAM } from '../memory/ram';
 import { drawCanvas } from './canvas';
 import { GamepadController } from './gamepad';
 import { Interrupter } from './interrupter';
 import { SystemTimer } from './timer';
+import { Cartridge, loadCartridge } from '../cartridge/cartridge';
+import { readSaveStorage, writeSaveStorage } from '../storage/saveStorage';
 
 export class Emulator {
   cpu: CPU;
   interrupter: Interrupter;
-  cartridge!: MBC3;
+  cartridge: Cartridge | null;
   lcd: LCD;
   timer: SystemTimer;
   gamepad: GamepadController;
   apu: APU;
   isRunning: boolean;
   isStepping: boolean;
+
+  sramSaveTimer: number = 0;
 
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
@@ -31,12 +32,14 @@ export class Emulator {
   constructor(canvas: HTMLCanvasElement) {
     this.cpu = new CPU(new RAM(1));
     this.interrupter = new Interrupter(this.cpu);
+    this.cartridge = null;
     this.lcd = new LCD(this.interrupter);
     this.timer = new SystemTimer(this.interrupter);
     this.gamepad = new GamepadController();
     this.apu = new APU();
     this.isRunning = false;
     this.isStepping = false;
+    this.sramSaveTimer = 0;
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
     this.debugTextElem = document.createElement('div');
@@ -45,30 +48,14 @@ export class Emulator {
   }
 
   async load(rom: Uint8Array) {
-    // TODO: Read ROM data and provide proper bank controller
-    const cartridgeInfo = await readCartridgeInfo(rom);
-    console.log(cartridgeInfo);
-    const cartridgeType = rom[0x147];
-    switch (cartridgeType) {
-      case 0x19:
-      case 0x1a:
-      case 0x1b:
-      case 0x1c:
-      case 0x1d:
-      case 0x1e:
-        // MBC5
-        this.cartridge = new MBC5(rom, new Uint8Array(8192 * 4));
-        break;
-      case 0x11:
-      case 0x12:
-      case 0x13:
-      default:
-        // MBC3
-        this.cartridge = new MBC3(rom, new Uint8Array(8192 * 4));
-        break;
+    const cart = await loadCartridge(rom);
+    const saveData = await readSaveStorage(cart.info);
+    if (saveData != null) {
+      cart.mbc.loadRAM(saveData);
     }
+    this.cartridge = cart;
     const memoryBus = new MemoryBus(
-      this.cartridge,
+      cart.mbc,
       this.lcd,
       this.timer,
       this.gamepad,
@@ -77,6 +64,25 @@ export class Emulator {
     this.cpu.memory = memoryBus;
     memoryBus.cpu = this.cpu;
     this.reboot();
+  }
+
+  loadSRAMFromFile(ram: Uint8Array): void {
+    const cart = this.cartridge;
+    if (cart == null) return;
+    cart.mbc.loadRAM(ram);
+  }
+
+  getSRAM(): Uint8Array | null {
+    const cart = this.cartridge;
+    if (cart == null) return null;
+    return cart.mbc.serializeRAM();
+  }
+
+  async saveSRAM(): Promise<void> {
+    const cart = this.cartridge;
+    if (cart == null) return;
+    const data = cart.mbc.serializeRAM();
+    await writeSaveStorage(cart.info, data);
   }
 
   reboot() {
@@ -88,6 +94,7 @@ export class Emulator {
     // Assume that we have continued through the bootloader
     this.cpu.jump(0x100);
     this.cpu.isRunning = true;
+    this.sramSaveTimer = 0;
   }
 
   start() {
@@ -109,7 +116,7 @@ export class Emulator {
 
   update() {
     if (!this.isRunning) return;
-    // Generate Pin/Timer interrupt (and run CPU for random time)
+    if (this.cartridge == null) return;
   
     // Start LCD clock
     if (this.isStepping) {
@@ -163,7 +170,6 @@ export class Emulator {
     if (this.isStepping) {
       console.log(this.lcd);
       console.log(this.cpu.clocks, this.cpu.getDebugState());
-      console.log(this.cartridge.romBank, this.cartridge.ramBank);
       console.log(this.interrupter.getDebugState());
 
       const buffer = [];
@@ -179,7 +185,7 @@ export class Emulator {
       this.interrupter.getDebugState(),
       this.lcd.getDebugState(),
       this.timer.getDebugState(),
-      this.cartridge.getDebugState(),
+      this.cartridge.mbc.getDebugState(),
       `Stack: ${this.readStack(20)}`,
       this.apu.getDebugState(),
     ].join('\n');
@@ -189,6 +195,18 @@ export class Emulator {
     drawCanvas(this.lcd, this.ctx);
     if (!this.isStepping) {
       this.apu.finalize();
+      // Save the RAM state if the SRAM has not been updated for 100 frames
+      // (debounce)
+      if (this.cartridge.mbc.ramUpdated) {
+        this.sramSaveTimer = 100;
+        this.cartridge.mbc.ramUpdated = false;
+      }
+      if (this.sramSaveTimer > 0) {
+        this.sramSaveTimer -= 1;
+        if (this.sramSaveTimer === 0) {
+          this.saveSRAM();
+        }
+      }
     }
   }
 }
