@@ -60,7 +60,7 @@ export class PCMPSG implements PSG {
   step(clocks: number): void {
     let remainingClocks = clocks;
     while (remainingClocks > 0) {
-      if (!this.enabled) break;
+      if (!this.enabled || !this.dacEnabled) break;
       // Calculate clocks for each trigger
       const phaseWidth = 2 * (2048 - this.wavelength);
       const phaseRemaining = phaseWidth - this.phaseClock;
@@ -79,7 +79,7 @@ export class PCMPSG implements PSG {
       remainingClocks -= consumedClocks;
     }
     // Calculate current output
-    if (this.enabled) {
+    if (this.enabled && this.dacEnabled) {
       const readAddr = this.phase >> 1;
       const readNibble = this.phase & 1;
       const byte = this.waveTable.read(readAddr);

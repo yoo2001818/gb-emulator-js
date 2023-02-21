@@ -118,7 +118,7 @@ export class MBC5 implements MemoryBankController {
 
   reset(): void {
     // NOTE: Don't reset SRAM
-    this.romBank = 0;
+    this.romBank = 1;
     this.ramBank = 0;
   }
 }

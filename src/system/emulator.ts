@@ -82,6 +82,7 @@ export class Emulator {
     const cart = this.cartridge;
     if (cart == null) return;
     const data = cart.mbc.serializeRAM();
+    if (data == null) return;
     await writeSaveStorage(cart.info, data);
   }
 

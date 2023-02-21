@@ -1,5 +1,6 @@
 import { CartridgeInfo, readCartridgeInfo } from "./info";
 import { MemoryBankController } from "./mbc/mbc";
+import { MBC1 } from "./mbc/mbc1";
 import { MBC3 } from "./mbc/mbc3";
 import { MBC5 } from "./mbc/mbc5";
 import { MBCType } from "./mbcType";
@@ -15,11 +16,14 @@ export async function loadCartridge(rom: Uint8Array): Promise<Cartridge> {
   switch (info.cartridgeType.mbcType) {
     case MBCType.ROM:
       return { info, mbc: new MBC3(rom, new Uint8Array(info.ramSize)) };
+    case MBCType.MBC1:
+      return { info, mbc: new MBC1(rom, new Uint8Array(info.ramSize)) };
     case MBCType.MBC3:
       return { info, mbc: new MBC3(rom, new Uint8Array(info.ramSize)) };
     case MBCType.MBC5:
       return { info, mbc: new MBC5(rom, new Uint8Array(info.ramSize)) };
     default:
+      console.log(info);
       throw new Error('This cartridge is not supported yet');
   }
 }
