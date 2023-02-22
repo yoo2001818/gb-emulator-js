@@ -25,6 +25,10 @@ export class SystemTimer implements Memory {
     this.tac = 0;
   }
 
+  canRestart(): boolean {
+    return (this.tac & 0x4) !== 0;
+  }
+
   getDebugState(): string {
     return `DIV: ${this.read(0x4).toString(16).padStart(2, '0')} TIMA: ${this.read(0x5).toString(16).padStart(2, '0')} TMA: ${this.read(0x6).toString(16).padStart(2, '0')} TAC: ${this.read(7).toString(16).padStart(2, '0')}`;
   }
@@ -46,6 +50,8 @@ export class SystemTimer implements Memory {
         this.timaClocks = this.tma * tickRate;
         // Generate interrupt
         this.interrupter.queueInterrupt(INTERRUPT_TYPE.TIMER_OVERFLOW);
+        // Force restart CPU
+        this.interrupter.cpu.isRunning = true;
       }
     }
     this.clocks += clocks;
