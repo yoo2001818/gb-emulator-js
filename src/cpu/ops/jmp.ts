@@ -3,18 +3,24 @@ import { OpExec } from './types';
 import { REGISTER } from '../constants';
 
 export const jp_a16: OpExec = (cpu, pc) => {
-  const nn = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
+  const nn1 = cpu.memory.read(pc + 1);
+  cpu.tick(4);
+  const nn2 = cpu.memory.read(pc + 2);
+  cpu.tick(12);
+  const nn = nn1 | (nn2 << 8);
   cpu.registers[REGISTER.PC] = nn;
-  cpu.tick(16);
 };
 
 export const jp_cond_a16 =
   (cond: (cpu: CPU) => boolean): OpExec =>
   (cpu, pc) => {
     if (cond(cpu)) {
-      const nn = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
+      const nn1 = cpu.memory.read(pc + 1);
+      cpu.tick(4);
+      const nn2 = cpu.memory.read(pc + 2);
+      cpu.tick(12);
+      const nn = nn1 | (nn2 << 8);
       cpu.registers[REGISTER.PC] = nn;
-      cpu.tick(16);
     } else {
       cpu.skip(3);
       cpu.tick(12);
@@ -53,32 +59,44 @@ export const jr_cond_r8 =
   };
 
 export const call_a16: OpExec = (cpu, pc) => {
+  // read memory
+  const nn1 = cpu.memory.read(pc + 1);
+  cpu.tick(4);
+  const nn2 = cpu.memory.read(pc + 2);
+  cpu.tick(8);
+  const nn = nn1 | (nn2 << 8);
   // push
   const value = pc + 3;
   const sp = cpu.registers[REGISTER.SP];
   cpu.memory.write(sp - 1, (value >>> 8) & 0xff);
+  cpu.tick(4);
   cpu.memory.write(sp - 2, value & 0xff);
+  cpu.tick(8);
   cpu.registers[REGISTER.SP] = (cpu.registers[REGISTER.SP] - 2) & 0xffff;
-  // jmp
-  const nn = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
+  // finish jmp
   cpu.registers[REGISTER.PC] = nn;
-  cpu.tick(24);
 };
 
 export const call_cond_a16 =
   (cond: (cpu: CPU) => boolean): OpExec =>
   (cpu, pc) => {
     if (cond(cpu)) {
+      // Read memory
+      const nn1 = cpu.memory.read(pc + 1);
+      cpu.tick(4);
+      const nn2 = cpu.memory.read(pc + 2);
+      cpu.tick(8);
+      const nn = nn1 | (nn2 << 8);
       // push
       const value = pc + 3;
       const sp = cpu.registers[REGISTER.SP];
       cpu.memory.write(sp - 1, (value >>> 8) & 0xff);
+      cpu.tick(4);
       cpu.memory.write(sp - 2, value & 0xff);
+      cpu.tick(8);
       cpu.registers[REGISTER.SP] = (cpu.registers[REGISTER.SP] - 2) & 0xffff;
       // jmp
-      const nn = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
       cpu.registers[REGISTER.PC] = nn;
-      cpu.tick(24);
     } else {
       cpu.skip(3);
       cpu.tick(12);
@@ -88,25 +106,30 @@ export const call_cond_a16 =
 export const rst_nn =
   (n: number): OpExec =>
   (cpu, pc) => {
+    cpu.tick(4);
     // push
     const value = pc + 1;
     const sp = cpu.registers[REGISTER.SP];
     cpu.memory.write(sp - 1, (value >>> 8) & 0xff);
+    cpu.tick(4);
     cpu.memory.write(sp - 2, value & 0xff);
+    cpu.tick(8);
     cpu.registers[REGISTER.SP] = (cpu.registers[REGISTER.SP] - 2) & 0xffff;
     // jmp
     cpu.registers[REGISTER.PC] = n;
-    cpu.tick(16);
   };
 
 export const ret: OpExec = (cpu, pc) => {
   // pop
   const sp = cpu.registers[REGISTER.SP];
-  const value = cpu.memory.read(sp) | (cpu.memory.read(sp + 1) << 8);
+  const value1 = cpu.memory.read(sp);
+  cpu.tick(4);
+  const value2 = cpu.memory.read(sp + 1);
+  cpu.tick(12);
+  const value = value1 | (value2 << 8);
   cpu.registers[REGISTER.SP] = (cpu.registers[REGISTER.SP] + 2) & 0xffff;
   // jmp
   cpu.registers[REGISTER.PC] = value;
-  cpu.tick(16);
 };
 
 export const ret_cond =
@@ -115,11 +138,15 @@ export const ret_cond =
     if (cond(cpu)) {
       // pop
       const sp = cpu.registers[REGISTER.SP];
-      const value = cpu.memory.read(sp) | (cpu.memory.read(sp + 1) << 8);
+      cpu.tick(4);
+      const value1 = cpu.memory.read(sp);
+      cpu.tick(4);
+      const value2 = cpu.memory.read(sp + 1);
+      cpu.tick(12);
+      const value = value1 | (value2 << 8);
       cpu.registers[REGISTER.SP] = (cpu.registers[REGISTER.SP] + 2) & 0xffff;
       // jmp
       cpu.registers[REGISTER.PC] = value;
-      cpu.tick(20);
     } else {
       cpu.skip(1);
       cpu.tick(8);
@@ -129,12 +156,14 @@ export const ret_cond =
 export const reti: OpExec = (cpu, pc) => {
   // pop
   const sp = cpu.registers[REGISTER.SP];
-  const value = cpu.memory.read(sp) | (cpu.memory.read(sp + 1) << 8);
+  const value1 = cpu.memory.read(sp);
+  cpu.tick(4);
+  const value2 = cpu.memory.read(sp + 1);
+  cpu.tick(12);
+  const value = value1 | (value2 << 8);
   cpu.registers[REGISTER.SP] = (cpu.registers[REGISTER.SP] + 2) & 0xffff;
   // jmp
   cpu.registers[REGISTER.PC] = value;
   // enable interrupts
-  cpu.isInterruptsEnabled = true;
   cpu.isInterruptsEnabledNext = true;
-  cpu.tick(16);
 };

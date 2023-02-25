@@ -75,20 +75,20 @@ export const ld_r16_a =
   };
 
 export const ldh_a8_a: OpExec = (cpu, pc) => {
-  cpu.tick(4);
   const addr = (0xff00 + cpu.memory.read(pc + 1)) & 0xffff;
+  cpu.tick(4);
   cpu.memory.write(addr, cpu.registers[REGISTER.A]);
   cpu.skip(2);
   cpu.tick(8);
 };
 
 export const ldh_a_a8: OpExec = (cpu, pc) => {
-  cpu.tick(4);
   const addr = (0xff00 + cpu.memory.read(pc + 1)) & 0xffff;
+  cpu.tick(4);
   const nn = cpu.memory.read(addr);
+  cpu.tick(8);
   cpu.registers[REGISTER.A] = nn;
   cpu.skip(2);
-  cpu.tick(8);
 };
 
 export const ld16_r_d16 =
