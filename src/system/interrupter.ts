@@ -50,17 +50,18 @@ export class Interrupter {
       const ie_reg = memory.read(IE_ADDR);
       let interrupt_reg = ie_reg & if_reg;
       if (interrupt_reg) {
-        // Check which type is generated 
-        let interrupt_type = 0;
-        while ((interrupt_reg & 1) === 0) {
-          interrupt_type += 1;
-          interrupt_reg = interrupt_reg >>> 1;
-        }
-        // Clear IF register of the type
-        memory.write(IF_ADDR, if_reg & ~(1 << interrupt_type));
-        // Generate interrupts
+        // Regardless of IME flag, start the CPU (continuing from HALT)
         this.cpu.isRunning = true;
         if (this.cpu.isInterruptsEnabled) {
+          // Check which type is generated 
+          let interrupt_type = 0;
+          while ((interrupt_reg & 1) === 0) {
+            interrupt_type += 1;
+            interrupt_reg = interrupt_reg >>> 1;
+          }
+          // Clear IF register of the type
+          memory.write(IF_ADDR, if_reg & ~(1 << interrupt_type));
+          // Generate interrupts
           this.cpu.enterInterrupt();
           this.cpu.jump(0x40 + (interrupt_type * 8));
         }

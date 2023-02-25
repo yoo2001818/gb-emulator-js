@@ -8,7 +8,6 @@ const TIMA_TICK_BITS = [512, 8, 32, 128];
 export class SystemTimer implements Memory {
   interrupter: Interrupter;
   clocks: number = 0;
-  prevClk: number = 0;
   tima: number = 0;
   tma: number = 0;
   tac: number = 0;
@@ -26,7 +25,9 @@ export class SystemTimer implements Memory {
   }
 
   getDebugState(): string {
-    return `DIV: ${this.read(0x4).toString(16).padStart(2, '0')} TIMA: ${this.read(0x5).toString(16).padStart(2, '0')} TMA: ${this.read(0x6).toString(16).padStart(2, '0')} TAC: ${this.read(7).toString(16).padStart(2, '0')}`;
+    return [
+      `DIV: ${this.read(0x4).toString(16).padStart(2, '0')} TIMA: ${this.read(0x5).toString(16).padStart(2, '0')} TMA: ${this.read(0x6).toString(16).padStart(2, '0')} TAC: ${this.read(7).toString(16).padStart(2, '0')}`,
+    ].join('\n');
   }
 
   getNextWakeupClockAdvance(): number {
@@ -38,7 +39,7 @@ export class SystemTimer implements Memory {
       const tickRate = TIMA_TICK_RATES[this.tac & 0x3];
       const curTime = this.clocks - (this.clocks % tickRate);
       const triggersNeeded = 0x100 - this.tima;
-      return curTime + triggersNeeded * tickRate;
+      return (curTime + triggersNeeded * tickRate) - this.clocks;
 
     }
     return 0x7fffffff;
@@ -49,8 +50,6 @@ export class SystemTimer implements Memory {
       this.tima = (this.tma + this.tima) & 0xff;
       // Generate interrupt
       this.interrupter.queueInterrupt(INTERRUPT_TYPE.TIMER_OVERFLOW);
-      // Force restart CPU
-      this.interrupter.cpu.isRunning = true;
     }
   }
 
@@ -76,9 +75,6 @@ export class SystemTimer implements Memory {
       const oldId = Math.floor(this.clocks / nPeriod);
       const steps = newId - oldId;
       this.tima += steps;
-      if (steps > 0) {
-        this.prevClk = this.clocks + clocks;
-      }
       this._postUpdateTIMA();
     }
     this.clocks += clocks;

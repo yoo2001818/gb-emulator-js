@@ -1,4 +1,4 @@
-import { RAM } from '../memory/ram';
+import { LockableRAM } from '../memory/lockableRAM';
 import { Memory } from '../memory/types';
 import { Interrupter, INTERRUPT_TYPE } from '../system/interrupter';
 import { renderLine } from './render';
@@ -50,7 +50,6 @@ export class LCD implements Memory {
   scx: number = 0;
   ly: number = 0;
   lyc: number = 0;
-  dma: number = 0;
   bgp: number = 0;
   obp0: number = 0;
   obp1: number = 0;
@@ -61,9 +60,12 @@ export class LCD implements Memory {
   clocks: number = 0;
   mode: number = 0;
   runVblank: boolean = false;
+  dmaSrc: number = 0;
+  dmaPos: number = -1;
+  dmaClocks: number = 0;
   framebuffer!: Uint16Array;
-  vram!: RAM;
-  oam!: RAM;
+  vram!: LockableRAM;
+  oam!: LockableRAM;
 
   constructor(interrupter: Interrupter) {
     this.setInterrupter(interrupter);
@@ -138,11 +140,9 @@ export class LCD implements Memory {
       case LCD_IO.DMA: {
         // Perform DMA operation
         const source = value << 8;
-        const dest = 0xfe00;
-        const memory = this.interrupter.cpu.memory;
-        for (let i = 0; i < 160; i += 1) {
-          memory.write(dest + i, memory.read(source + i));
-        }
+        this.dmaSrc = source;
+        this.dmaClocks = -4;
+        this.dmaPos = 0;
         return;
       }
       case LCD_IO.BGP:
@@ -182,9 +182,15 @@ export class LCD implements Memory {
     this.lineClock = 0;
     this.clocks = 0;
     this.mode = 0;
+    this.dmaPos = -1;
+    this.dmaClocks = 0;
+    this.dmaSrc = 0;
     this.framebuffer = new Uint16Array(LCD_WIDTH * LCD_HEIGHT);
-    this.vram = new RAM(0x2000);
-    this.oam = new RAM(0x100);
+    this.vram = new LockableRAM(0x2000, () => false);
+    this.oam = new LockableRAM(0x100, () => {
+      if (this.dmaPos >= 0) return true;
+      return false;
+    });
   }
 
   handleLineChange(): void {
@@ -263,6 +269,24 @@ export class LCD implements Memory {
 
   // NOTE: The clock may not directly correspond to the CPU.
   advanceClock(clocks: number): void {
+    // Run DMA operation
+    let dmaRemaining = clocks;
+    while (this.dmaPos >= 0 && this.dmaPos < 160 && dmaRemaining > 0) {
+      const incClocks = Math.min(4 - this.dmaClocks, dmaRemaining);
+      this.dmaClocks += incClocks;
+      dmaRemaining -= incClocks;
+      if (this.dmaClocks >= 4) {
+        this.dmaClocks = 0;
+        const pos = this.dmaPos;
+        const memory = this.interrupter.cpu.memory;
+        this.oam.bytes[pos] = memory.read(this.dmaSrc + pos);
+        this.dmaPos += 1;
+      }
+      if (this.dmaPos >= 160) {
+        this.dmaPos = -1;
+        break;
+      }
+    }
     // If not enabled, stop the LCD clock
     let remaining = clocks;
     while (remaining > 0) {

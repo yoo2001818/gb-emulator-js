@@ -2,7 +2,7 @@ import { MemoryBankController } from './mbc';
 
 export class MBC3 implements MemoryBankController {
   rom: Uint8Array;
-  ram: Uint8Array;
+  ram: Uint8Array | null;
   romBank: number = 1;
   ramBank: number = 0;
   ramEnabled: boolean = true;
@@ -10,7 +10,7 @@ export class MBC3 implements MemoryBankController {
   latchedTime: Date | null = null;
   ramUpdated: boolean = false;
 
-  constructor(rom: Uint8Array, ram: Uint8Array) {
+  constructor(rom: Uint8Array, ram: Uint8Array | null) {
     this.rom = rom;
     this.ram = ram;
   }
@@ -19,7 +19,7 @@ export class MBC3 implements MemoryBankController {
     this.ram = ram;
   }
 
-  serializeRAM(): Uint8Array {
+  serializeRAM(): Uint8Array | null {
     return this.ram;
   }
 
@@ -41,6 +41,7 @@ export class MBC3 implements MemoryBankController {
     // RAM Bank 00..03
     if (pos < 0xC000) {
       if (this.ramBank < 3) {
+        if (this.ram == null) return 0xff;
         return this.ram[(this.ramBank * 0x2000 + (pos - 0xA000)) % this.ram.length];
       } else {
         // RTC Access
@@ -104,6 +105,7 @@ export class MBC3 implements MemoryBankController {
     if (pos < 0xA000) return;
     // RAM Bank 00..03
     if (pos < 0xC000) {
+      if (this.ram == null) return;
       if (this.ramBank < 3) {
         this.ram[(this.ramBank * 0x2000 + (pos - 0xA000)) % this.ram.length] = value;
         this.ramUpdated = true;

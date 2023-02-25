@@ -8,9 +8,9 @@ export class MBC1 implements MemoryBankController {
   ramUpdated: boolean = false;
   bankingMode: boolean = false;
 
-  constructor(rom: Uint8Array, ram?: Uint8Array) {
+  constructor(rom: Uint8Array, ram: Uint8Array | null) {
     this.rom = rom;
-    this.ram = ram ?? null;
+    this.ram = ram;
   }
 
   loadRAM(ram: Uint8Array): void {
