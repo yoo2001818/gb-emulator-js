@@ -63,6 +63,12 @@ export class Emulator {
     );
     this.cpu.memory = memoryBus;
     memoryBus.cpu = this.cpu;
+    this.cpu.onTick = (elapsedClocks) => {
+      // Run I/O
+      this.lcd.advanceClock(elapsedClocks);
+      this.timer.advanceClock(elapsedClocks);
+      this.apu.advanceClock(elapsedClocks);
+    };
     this.reboot();
   }
 
@@ -161,12 +167,8 @@ export class Emulator {
         );
         if (skipClocks === 0) break;
         elapsedClocks = skipClocks;
-        this.cpu.clocks += skipClocks;
+        this.cpu.tick(skipClocks);
       }
-      // Run I/O
-      this.lcd.advanceClock(elapsedClocks);
-      this.timer.advanceClock(elapsedClocks);
-      this.apu.advanceClock(elapsedClocks);
     }
     if (this.isStepping) {
       console.log(this.lcd);

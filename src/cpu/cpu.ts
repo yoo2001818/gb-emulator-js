@@ -6,6 +6,7 @@ export class CPU {
   registers: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   clocks: number = 0;
   memory: Memory;
+  onTick: (clocks: number) => void;
   isRunning = false;
   isInterruptsEnabled = false;
   isInterruptsEnabledNext = false;
@@ -15,6 +16,7 @@ export class CPU {
   constructor(memory: Memory) {
     this.memory = memory;
     this.reset();
+    this.onTick = () => {};
   }
 
   reset(): void {
@@ -53,6 +55,11 @@ export class CPU {
 
   jump(addr: number): void {
     this.registers[REGISTER.PC] = addr & 0xffff;
+  }
+
+  tick(clocks: number): void {
+    this.clocks += clocks;
+    this.onTick(clocks);
   }
 
   enterInterrupt(): void {
@@ -97,7 +104,7 @@ export class CPU {
       // Illegal instruction
       // (We skip it through)
       this.skip(1);
-      this.clocks += 4;
+      this.tick(4);
     }
   }
 

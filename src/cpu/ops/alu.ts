@@ -92,7 +92,7 @@ export const alu_binary =
     const n2 = r2.read(cpu);
     cpu.registers[REGISTER.A] = op(cpu, n1, n2);
     cpu.skip(1);
-    cpu.clocks += 4 + r2.clocks;
+    cpu.tick(4 + r2.clocks);
   };
 
 export const alu_binary_imm =
@@ -102,16 +102,40 @@ export const alu_binary_imm =
     const n2 = cpu.memory.read(pc + 1);
     cpu.registers[REGISTER.A] = op(cpu, n1, n2);
     cpu.skip(2);
-    cpu.clocks += 8;
+    cpu.tick(8);
   };
 
 export const alu_unary =
   (op: ALUUnaryOp, r: Register8Description, clocks: number): OpExec =>
   (cpu) => {
+    if (clocks === 4) {
+      const n = r.read(cpu);
+      if (r.clocks > 0) cpu.tick(r.clocks);
+      r.write(cpu, op(cpu, n));
+      cpu.skip(1);
+      if (r.clocks > 0) {
+        cpu.tick(r.clocks + clocks);
+      } else {
+        cpu.tick(clocks);
+      }
+    } else {
+      if (r.clocks > 0) cpu.tick(r.clocks);
+      const n = r.read(cpu);
+      if (r.clocks > 0) cpu.tick(r.clocks);
+      r.write(cpu, op(cpu, n));
+      cpu.skip(1);
+      cpu.tick(clocks);
+    }
+  };
+
+export const alu_unary_read =
+  (op: ALUUnaryOp, r: Register8Description, clocks: number): OpExec =>
+  (cpu) => {
+    if (r.clocks > 0) cpu.tick(r.clocks);
     const n = r.read(cpu);
-    r.write(cpu, op(cpu, n));
+    op(cpu, n);
     cpu.skip(1);
-    cpu.clocks += clocks + r.clocks;
+    cpu.tick(clocks);
   };
 
 export const alu_inc: ALUUnaryOp = (cpu, n) => {
