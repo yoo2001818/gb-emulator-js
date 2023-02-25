@@ -147,7 +147,7 @@ export class Emulator {
       this.cpu.isTrapResolved = true;
       this.cpu.isTrapped = false;
     }
-    while (this.cpu.clocks < stopClock && (this.cpu.isRunning || this.cpu.isInterruptsEnabled || this.timer.canRestart()) && !this.cpu.isTrapped) {
+    while (this.cpu.clocks < stopClock && (this.cpu.isRunning || this.interrupter.acceptsInterrupt()) && !this.cpu.isTrapped) {
       // Run CPU
       let beforeClock = this.cpu.clocks;
       this.interrupter.step();
@@ -155,8 +155,8 @@ export class Emulator {
       if (elapsedClocks === 0) {
         // CPU is halted; try to retrive next interesting clock
         const skipClocks = Math.min(
-          this.lcd.getNextWakeupClockAdvance() + 1,
-          this.timer.getNextWakeupClockAdvance() + 1,
+          this.lcd.getNextWakeupClockAdvance(),
+          this.timer.getNextWakeupClockAdvance(),
           // stopClock - this.cpu.clocks,
         );
         if (skipClocks === 0) break;

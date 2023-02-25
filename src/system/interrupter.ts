@@ -24,9 +24,13 @@ export class Interrupter {
     let if_reg = memory.read(IF_ADDR);
     if_reg |= 1 << type;
     memory.write(IF_ADDR, if_reg);
-    if (this.cpu.isInterruptsEnabled) {
-      this.cpu.isRunning = true;
-    }
+    this.cpu.isRunning = true;
+  }
+
+  acceptsInterrupt(): boolean {
+    const memory = this.cpu.memory;
+    const ie_reg = memory.read(IE_ADDR);
+    return (ie_reg & 0x1f) !== 0;
   }
 
   getDebugState(): string {

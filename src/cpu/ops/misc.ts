@@ -131,7 +131,7 @@ export const scf: OpExec = (cpu) => {
 
 export const halt: OpExec = (cpu) => {
   cpu.isRunning = false;
-  cpu.skip(2);
+  cpu.skip(1);
   cpu.clocks += 4;
 };
 

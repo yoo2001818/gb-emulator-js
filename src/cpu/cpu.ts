@@ -65,7 +65,7 @@ export class CPU {
     this.memory.write(sp - 1, (value >>> 8) & 0xff);
     this.memory.write(sp - 2, value & 0xff);
     this.registers[REGISTER.SP] = (this.registers[REGISTER.SP] - 2) & 0xffff;
-    this.clocks += 8;
+    this.clocks += 4 * 5;
   }
 
   getDebugState(): string {
@@ -81,7 +81,7 @@ export class CPU {
     this.isInterruptsEnabled = this.isInterruptsEnabledNext;
     const pc = this.registers[REGISTER.PC];
     /*
-    if (!this.isTrapResolved && [0xdef8].includes(pc)) {
+    if (!this.isTrapResolved && ([0xc2c5].includes(pc))) {
       console.log('Trapped', pc.toString(16), this.clocks);
       this.isTrapped = true;
       return;
@@ -97,6 +97,7 @@ export class CPU {
       // Illegal instruction
       // (We skip it through)
       this.skip(1);
+      this.clocks += 4;
     }
   }
 
