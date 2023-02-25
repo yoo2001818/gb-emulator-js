@@ -180,7 +180,6 @@ export class Emulator {
         buffer.push(this.cpu.memory.read(i).toString(16));
       }
       console.log(buffer);
-      console.log(this.apu.buffer);
     }
     this.debugTextElem.innerText = [
       `CLK: ${this.cpu.clocks}`,

@@ -33,6 +33,7 @@ async function start() {
   canvas.style.width = `${LCD_WIDTH * 2}px`;
   canvas.style.height = `${LCD_HEIGHT * 2}px`;
   canvas.style.imageRendering = 'crisp-edges';
+  canvas.style.border = '1px solid #000';
   const emulator = new Emulator(canvas);
   const rom = await loadROM();
   await emulator.load(rom);

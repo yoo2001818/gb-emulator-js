@@ -74,6 +74,7 @@ export class LCD implements Memory {
     return [
       `LCDC: ${this.read(LCD_IO.LCDC).toString(16).padStart(2, '0')} STAT: ${this.read(LCD_IO.STAT).toString(16).padStart(2, '0')}`,
       `LY: ${this.read(LCD_IO.LY).toString(16).padStart(2, '0')} LYC: ${this.read(LCD_IO.LYC).toString(16).padStart(2, '0')}`,
+      `LCLK: ${this.lineClock} CLK: ${this.clocks}`
     ].join('\n');
   }
 
