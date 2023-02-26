@@ -139,16 +139,6 @@ export class Emulator {
     // Run system until stopped
     // 4.194304MHz -> Around 70224 clocks per each frame (17556 M-clocks)
     let stopClock = this.cpu.clocks + 17556;
-    // let stop_clock = this.cpu.clocks + 796976;
-    // SRAM - 855528
-    // let stop_clock = this.cpu.clocks + 861344;
-    // let stop_clock = this.cpu.clocks + 797020;
-    // let stop_clock = this.cpu.clocks + 797560;
-    // stopClock = this.cpu.clocks + 501760;
-    // stopClock = this.cpu.clocks + 1048600;
-    // stopClock = this.cpu.clocks + 1056656;
-    // stopClock = this.cpu.clocks + 37069345;
-    // 866980
     if (this.isStepping) {
       stopClock = this.cpu.clocks + 1;
       this.isRunning = false;

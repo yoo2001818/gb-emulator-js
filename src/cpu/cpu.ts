@@ -1,5 +1,6 @@
 import { Memory } from '../memory/types';
 import { FLAG, REGISTER } from './constants';
+import { CPULog } from './log';
 import { main_opcodes } from './ops/opcode';
 
 export class CPU {
@@ -10,8 +11,16 @@ export class CPU {
   isRunning = false;
   isInterruptsEnabled = false;
   isInterruptsEnabledNext = false;
+
   isTrapped = false;
   isTrapResolved = false;
+
+  isDebugging = true;
+  debugLogs: CPULog[] = [];
+  opSizes: Uint8Array = new Uint8Array(0x10000);
+  breakpoints: number[] = [];
+  readBreakpoints: number[] = [];
+  writeBreakpoints: number[] = [];
 
   constructor(memory: Memory) {
     this.memory = memory;
@@ -24,6 +33,18 @@ export class CPU {
     this.clocks = 0;
     this.isInterruptsEnabled = false;
     this.isInterruptsEnabledNext = false;
+    this.isDebugging = true;
+    this.debugLogs = [];
+    this.opSizes.fill(0);
+  }
+
+  getDebugFlags(): string {
+    let output = [];
+    output.push(this.getFlag(FLAG.Z) ? 'Z' : '-');
+    output.push(this.getFlag(FLAG.N) ? 'N' : '-');
+    output.push(this.getFlag(FLAG.H) ? 'H' : '-');
+    output.push(this.getFlag(FLAG.C) ? 'C' : '-');
+    return output.join('');
   }
 
   readHL(): number {
@@ -62,6 +83,19 @@ export class CPU {
     this.onTick(clocks);
   }
 
+  log(type: CPULog['type'], data: string, address?: number, comment?: string): void {
+    if (this.isDebugging) {
+      this.debugLogs.push({ type, data, address, comment });
+      if (this.debugLogs.length > 1000) {
+        this.debugLogs.shift();
+      }
+    }
+  }
+
+  trap(): void {
+    this.isTrapped = true;
+  }
+
   enterInterrupt(): void {
     // Reset IME Flag
     this.isInterruptsEnabled = false;
@@ -97,7 +131,6 @@ export class CPU {
     this.isTrapResolved = false;
     const opcode = this.memory.read(pc);
     const op_exec = main_opcodes[opcode];
-    // console.log(op_exec);
     if (op_exec != null) {
       op_exec(this, pc);
     } else {
