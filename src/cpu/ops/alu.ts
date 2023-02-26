@@ -246,7 +246,8 @@ export const alu_unary =
       n = r.read(cpu);
       if (r.clocks > 0) cpu.tick(r.clocks);
       r.write(cpu, op(cpu, n));
-      cpu.skip(1);
+      // NOTE: This is called from "CB" prefix, we're taking account of it
+      cpu.skip(2);
       cpu.tick(clocks);
     }
     if (cpu.isDebugging) {
@@ -260,7 +261,8 @@ export const alu_unary_read =
     if (r.clocks > 0) cpu.tick(r.clocks);
     const n = r.read(cpu);
     op(cpu, n);
-    cpu.skip(1);
+    // NOTE: This is called from "CB" prefix, we're taking account of it
+    cpu.skip(2);
     cpu.tick(clocks);
     if (cpu.isDebugging) {
       cpu.log('op', `${op.opName} ${op.param ? `${op.param}, ` : ''}${r.name}`, pc, `${r.name}=${getHex8(n)} ${cpu.getDebugFlags()}`);

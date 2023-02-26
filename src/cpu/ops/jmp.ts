@@ -9,6 +9,7 @@ export const jp_a16: OpExec = (cpu, pc) => {
   const nn2 = cpu.memory.read(pc + 2);
   cpu.tick(3);
   const nn = nn1 | (nn2 << 8);
+  cpu.skip(3);
   cpu.registers[REGISTER.PC] = nn;
   if (cpu.isDebugging) {
     cpu.log('op', `jp ${getHex16(nn)}`, pc, `pc=${getHex16(nn)}`);
@@ -24,6 +25,7 @@ export const jp_cond_a16 =
       const nn2 = cpu.memory.read(pc + 2);
       cpu.tick(3);
       const nn = nn1 | (nn2 << 8);
+      cpu.skip(3);
       cpu.registers[REGISTER.PC] = nn;
       if (cpu.isDebugging) {
         cpu.log('op', `jp ${cond.name}, ${getHex16(nn)}`, pc, `pc=${getHex16(nn)}`);
@@ -42,6 +44,7 @@ export const jp_cond_a16 =
 
 export const jp_hl: OpExec = (cpu, pc) => {
   const nn = cpu.readHL();
+  cpu.skip(1);
   cpu.registers[REGISTER.PC] = nn;
   cpu.tick(1);
   if (cpu.isDebugging) {
@@ -55,6 +58,7 @@ export const jr_r8: OpExec = (cpu, pc) => {
     n = -((~n + 1) & 0xff);
   }
   const result = (cpu.registers[REGISTER.PC] + 2 + n) & 0xffff;
+  cpu.skip(2);
   cpu.registers[REGISTER.PC] = result;
   cpu.tick(3);
   if (cpu.isDebugging) {
@@ -76,6 +80,7 @@ export const jr_cond_r8 =
     let extraMsg = 'skip';
     if (cond(cpu)) {
       const result = (cpu.registers[REGISTER.PC] + 2 + n) & 0xffff;
+      cpu.skip(2);
       cpu.registers[REGISTER.PC] = result;
       cpu.tick(3);
       if (cpu.isDebugging) {
@@ -111,6 +116,7 @@ export const call_a16: OpExec = (cpu, pc) => {
   const spNext = (sp - 2) & 0xffff;
   cpu.registers[REGISTER.SP] = spNext;
   // finish jmp
+  cpu.skip(3);
   cpu.registers[REGISTER.PC] = nn;
   if (cpu.isDebugging) {
     cpu.log('op', `call ${getHex16(nn)}`, pc, `pc=${getHex16(nn)} sp=${getHex16(spNext)}`);
@@ -137,6 +143,7 @@ export const call_cond_a16 =
       const spNext = (sp - 2) & 0xffff;
       cpu.registers[REGISTER.SP] = spNext;
       // jmp
+      cpu.skip(3);
       cpu.registers[REGISTER.PC] = nn;
       if (cpu.isDebugging) {
         cpu.log('op', `call ${cond.name}, ${getHex16(nn)}`, pc, `pc=${getHex16(nn)} sp=${getHex16(spNext)}`);
@@ -167,6 +174,7 @@ export const rst_nn =
     const spNext = (sp - 2) & 0xffff;
     cpu.registers[REGISTER.SP] = spNext;
     // jmp
+    cpu.skip(1);
     cpu.registers[REGISTER.PC] = n;
     if (cpu.isDebugging) {
       cpu.log('op', `rst ${getHex8(n)}`, pc, `pc=${getHex16(n)} sp=${getHex16(spNext)}`);
@@ -184,6 +192,7 @@ export const ret: OpExec = (cpu, pc) => {
   const spNext = (sp + 2) & 0xffff;
   cpu.registers[REGISTER.SP] = spNext;
   // jmp
+  cpu.skip(1);
   cpu.registers[REGISTER.PC] = value;
   if (cpu.isDebugging) {
     cpu.log('op', 'ret', pc, `pc=${getHex16(value)} sp=${getHex16(spNext)}`);
@@ -205,6 +214,7 @@ export const ret_cond =
       const spNext = (sp + 2) & 0xffff;
       cpu.registers[REGISTER.SP] = spNext;
       // jmp
+      cpu.skip(1);
       cpu.registers[REGISTER.PC] = value;
       if (cpu.isDebugging) {
         cpu.log('op', `ret ${cond.name}`, pc, `pc=${getHex16(value)} sp=${getHex16(spNext)}`);
@@ -229,6 +239,7 @@ export const reti: OpExec = (cpu, pc) => {
   const spNext = (sp + 2) & 0xffff;
   cpu.registers[REGISTER.SP] = spNext;
   // jmp
+  cpu.skip(1);
   cpu.registers[REGISTER.PC] = value;
   // enable interrupts
   cpu.isInterruptsEnabledNext = true;

@@ -71,6 +71,7 @@ export class CPU {
 
   skip(bytes: number): void {
     const pc = this.registers[REGISTER.PC];
+    this.opSizes[pc] = bytes;
     this.registers[REGISTER.PC] = (pc + bytes) & 0xffff;
   }
 

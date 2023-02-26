@@ -1,6 +1,5 @@
 import { generateLUTRules } from '../lut';
 import { OpExec } from './types';
-import { REGISTER } from '../constants';
 import {
   alu_binary,
   alu_binary_imm,
@@ -75,7 +74,6 @@ const prefix_opcodes = generateLUTRules(256, [
 ]);
 
 const read_prefix: OpExec = (cpu, pc) => {
-  cpu.registers[REGISTER.PC] += 1;
   const next = cpu.memory.read(pc + 1);
   prefix_opcodes[next](cpu, pc + 1);
 };
