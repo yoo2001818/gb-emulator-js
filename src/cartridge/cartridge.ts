@@ -22,11 +22,11 @@ export async function loadCartridge(cpu: CPU, rom: Uint8Array): Promise<Cartridg
   // Note that we don't perform any I/O here
   switch (info.cartridgeType.mbcType) {
     case MBCType.ROM:
-      return { info, mbc: new MBC3(rom, ram, cpu) };
+      return { info, mbc: new MBC3(rom, ram, cpu, info.cartridgeType.hasTimer) };
     case MBCType.MBC1:
       return { info, mbc: new MBC1(rom, ram) };
     case MBCType.MBC3:
-      return { info, mbc: new MBC3(rom, ram, cpu) };
+      return { info, mbc: new MBC3(rom, ram, cpu, info.cartridgeType.hasTimer) };
     case MBCType.MBC5:
       return { info, mbc: new MBC5(rom, ram) };
     default:

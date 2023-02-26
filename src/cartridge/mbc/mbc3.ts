@@ -5,31 +5,43 @@ import { MemoryBankController } from './mbc';
 export class MBC3 implements MemoryBankController {
   rom: Uint8Array;
   ram: Uint8Array | null;
+  hasRTC: boolean;
   rtc: RTC;
   romBank: number = 1;
   ramBank: number = 0;
   ramEnabled: boolean = true;
   ramUpdated: boolean = false;
 
-  constructor(rom: Uint8Array, ram: Uint8Array | null, cpu: CPU) {
+  constructor(rom: Uint8Array, ram: Uint8Array | null, cpu: CPU, hasRTC: boolean) {
     this.rom = rom;
     this.ram = ram;
     this.rtc = new RTC(cpu);
+    this.hasRTC = hasRTC;
   }
 
   loadRAM(ram: Uint8Array): void {
-    this.ram = ram;
-    // TODO: Load RTC
+    if (this.hasRTC) {
+      this.ram = ram.slice(0, this.ram!.length);
+      this.rtc.load(ram, this.ram!.length);
+    } else {
+      this.ram = ram;
+    }
   }
 
   serializeRAM(): Uint8Array | null {
-    // TODO: Save RTC
-    return this.ram;
+    if (this.hasRTC) {
+      const saveData = new Uint8Array(this.ram!.length + 48);
+      saveData.set(this.ram!, 0);
+      this.rtc.save(saveData, this.ram!.length);
+      return saveData;
+    } else {
+      return this.ram;
+    }
   }
 
   getDebugState(): string {
     return [
-      `ROM Bank: ${this.romBank} RAM Bank: ${this.ramBank} RTC: ${this.rtc.selectedRegister}`,
+      `ROM Bank: ${this.romBank} RAM Bank: ${this.ramBank}`,
     ].join('\n');
   }
 

@@ -1,7 +1,8 @@
 import { CPU } from "../cpu/cpu";
 import { Memory } from "../memory/types";
+import { loadRTC, saveRTC } from "./rtcSave";
 
-interface RTCData {
+export interface RTCData {
   seconds: number;
   minutes: number;
   hours: number;
@@ -23,6 +24,20 @@ export class RTC implements Memory {
     this.selectedRegister = 0;
     this.data = { seconds: 0, minutes: 0, hours: 0, days: 0, halted: false };
     this.latchedData = null;
+    this.prevClocks = 0;
+  }
+
+  load(input: Uint8Array, offset: number): void {
+    this.prevClocks = 0;
+    this.data = loadRTC(input, offset);
+    this.latchedData = null;
+  }
+
+  save(output: Uint8Array, offset: number): void {
+    saveRTC(this.data, output, offset);
+  }
+
+  reset(): void {
     this.prevClocks = 0;
   }
 
