@@ -30,9 +30,9 @@ async function start() {
   document.body.appendChild(canvas);
   canvas.width = LCD_WIDTH;
   canvas.height = LCD_HEIGHT;
-  canvas.style.width = `${LCD_WIDTH * 2}px`;
-  canvas.style.height = `${LCD_HEIGHT * 2}px`;
-  canvas.style.imageRendering = 'crisp-edges';
+  canvas.style.width = `${LCD_WIDTH * 4}px`;
+  canvas.style.height = `${LCD_HEIGHT * 4}px`;
+  canvas.style.imageRendering = 'pixelated';
   canvas.style.border = '1px solid #000';
   const emulator = new Emulator(canvas);
   const rom = await loadROM();

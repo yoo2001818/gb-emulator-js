@@ -1,31 +1,35 @@
+import { CPU } from '../../cpu/cpu';
+import { RTC } from '../rtc';
 import { MemoryBankController } from './mbc';
 
 export class MBC3 implements MemoryBankController {
   rom: Uint8Array;
   ram: Uint8Array | null;
+  rtc: RTC;
   romBank: number = 1;
   ramBank: number = 0;
   ramEnabled: boolean = true;
-  initialTime: number = Date.now();
-  latchedTime: Date | null = null;
   ramUpdated: boolean = false;
 
-  constructor(rom: Uint8Array, ram: Uint8Array | null) {
+  constructor(rom: Uint8Array, ram: Uint8Array | null, cpu: CPU) {
     this.rom = rom;
     this.ram = ram;
+    this.rtc = new RTC(cpu);
   }
 
   loadRAM(ram: Uint8Array): void {
     this.ram = ram;
+    // TODO: Load RTC
   }
 
   serializeRAM(): Uint8Array | null {
+    // TODO: Save RTC
     return this.ram;
   }
 
   getDebugState(): string {
     return [
-      `ROM Bank: ${this.romBank} RAM Bank: ${this.ramBank}`,
+      `ROM Bank: ${this.romBank} RAM Bank: ${this.ramBank} RTC: ${this.rtc.selectedRegister}`,
     ].join('\n');
   }
 
@@ -40,34 +44,12 @@ export class MBC3 implements MemoryBankController {
     if (pos < 0xA000) return 0;
     // RAM Bank 00..03
     if (pos < 0xC000) {
+      if (!this.ramEnabled) return 0xff;
       if (this.ramBank < 3) {
         if (this.ram == null) return 0xff;
         return this.ram[(this.ramBank * 0x2000 + (pos - 0xA000)) % this.ram.length];
       } else {
-        // RTC Access
-        const date = this.latchedTime ?? new Date();
-        const timeDiff = date.getTime() - this.initialTime;
-        switch (this.ramBank) {
-          case 0x8:
-            return Math.floor(timeDiff / 1000) % 60;
-          case 0x9:
-            return Math.floor(timeDiff / 1000 / 60) % 60;
-          case 0xA:
-            return Math.floor(timeDiff / 1000 / 60 / 60) % 24;
-          case 0xB: {
-            const day = Math.floor(timeDiff / 1000 / 60 / 60 / 24);
-            return day & 0xff;
-          }
-          case 0xC: {
-            const day = Math.floor(timeDiff / 1000 / 60 / 60 / 24);
-            const overflown = day > 0x100;
-            let bits = 0;
-            bits |= (day >> 8) & 1;
-            if (this.latchedTime != null) bits |= 1 << 6;
-            if (overflown) bits |= 1 << 7;
-            return bits;
-          }
-        }
+        return this.rtc.read(pos);
       }
     }
     return 0;
@@ -80,7 +62,7 @@ export class MBC3 implements MemoryBankController {
       return;
     }
     // ROM Bank Number
-    if (pos < 0x3000) {
+    if (pos < 0x4000) {
       this.romBank = value & 0x7f;
       if (this.romBank === 0) {
         this.romBank = 1;
@@ -90,28 +72,26 @@ export class MBC3 implements MemoryBankController {
     // RAM Bank Number
     if (pos < 0x6000) {
       this.ramBank = value & 0x0f;
+      this.rtc.write(pos, value);
       return;
     }
     // Latch Clock Data
     if (pos < 0x8000) {
-      if (value) {
-        this.latchedTime = new Date();
-      } else {
-        this.latchedTime = null;
-      }
+      this.rtc.write(pos, value);
       return;
     }
     // Noop
     if (pos < 0xA000) return;
     // RAM Bank 00..03
     if (pos < 0xC000) {
-      if (this.ram == null) return;
+      if (!this.ramEnabled) return;
       if (this.ramBank < 3) {
+        if (this.ram == null) return;
         this.ram[(this.ramBank * 0x2000 + (pos - 0xA000)) % this.ram.length] = value;
         this.ramUpdated = true;
       } else {
         // RTC Access
-        // FIXME: Implement this
+        this.rtc.write(pos, value);
       }
     }
   }

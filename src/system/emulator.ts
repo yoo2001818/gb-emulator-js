@@ -48,7 +48,7 @@ export class Emulator {
   }
 
   async load(rom: Uint8Array) {
-    const cart = await loadCartridge(rom);
+    const cart = await loadCartridge(this.cpu, rom);
     const saveData = await readSaveStorage(cart.info);
     if (saveData != null) {
       cart.mbc.loadRAM(saveData);

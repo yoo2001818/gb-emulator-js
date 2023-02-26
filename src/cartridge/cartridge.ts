@@ -1,3 +1,4 @@
+import { CPU } from "../cpu/cpu";
 import { CartridgeInfo, readCartridgeInfo } from "./info";
 import { MemoryBankController } from "./mbc/mbc";
 import { MBC1 } from "./mbc/mbc1";
@@ -15,17 +16,17 @@ function createSRAM(size: number): Uint8Array | null {
   return new Uint8Array(size);
 }
 
-export async function loadCartridge(rom: Uint8Array): Promise<Cartridge> {
+export async function loadCartridge(cpu: CPU, rom: Uint8Array): Promise<Cartridge> {
   const info = await readCartridgeInfo(rom);
   const ram = createSRAM(info.ramSize);
   // Note that we don't perform any I/O here
   switch (info.cartridgeType.mbcType) {
     case MBCType.ROM:
-      return { info, mbc: new MBC3(rom, ram) };
+      return { info, mbc: new MBC3(rom, ram, cpu) };
     case MBCType.MBC1:
       return { info, mbc: new MBC1(rom, ram) };
     case MBCType.MBC3:
-      return { info, mbc: new MBC3(rom, ram) };
+      return { info, mbc: new MBC3(rom, ram, cpu) };
     case MBCType.MBC5:
       return { info, mbc: new MBC5(rom, ram) };
     default:

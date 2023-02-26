@@ -40,35 +40,8 @@ export class MBC5 implements MemoryBankController {
     if (pos < 0xA000) return 0;
     // RAM Bank 00..03
     if (pos < 0xC000) {
-      if (this.ramBank < 3) {
-        if (this.ram == null) return 0xff;
-        return this.ram[(this.ramBank * 0x2000 + (pos - 0xA000)) % this.ram.length];
-      } else {
-        // RTC Access
-        const date = this.latchedTime ?? new Date();
-        const timeDiff = date.getTime() - this.initialTime;
-        switch (this.ramBank) {
-          case 0x8:
-            return Math.floor(timeDiff / 1000) % 60;
-          case 0x9:
-            return Math.floor(timeDiff / 1000 / 60) % 60;
-          case 0xA:
-            return Math.floor(timeDiff / 1000 / 60 / 60) % 24;
-          case 0xB: {
-            const day = Math.floor(timeDiff / 1000 / 60 / 60 / 24);
-            return day & 0xff;
-          }
-          case 0xC: {
-            const day = Math.floor(timeDiff / 1000 / 60 / 60 / 24);
-            const overflown = day > 0x100;
-            let bits = 0;
-            bits |= (day >> 8) & 1;
-            if (this.latchedTime != null) bits |= 1 << 6;
-            if (overflown) bits |= 1 << 7;
-            return bits;
-          }
-        }
-      }
+      if (this.ram == null) return 0xff;
+      return this.ram[(this.ramBank * 0x2000 + (pos - 0xA000)) % this.ram.length];
     }
     return 0;
   }
@@ -94,27 +67,13 @@ export class MBC5 implements MemoryBankController {
       this.ramBank = value & 0x0f;
       return;
     }
-    // Latch Clock Data
-    if (pos < 0x8000) {
-      if (value) {
-        this.latchedTime = new Date();
-      } else {
-        this.latchedTime = null;
-      }
-      return;
-    }
     // Noop
     if (pos < 0xA000) return;
     // RAM Bank 00..03
     if (pos < 0xC000) {
       if (this.ram == null) return;
-      if (this.ramBank < 3) {
-        this.ram[(this.ramBank * 0x2000 + (pos - 0xA000)) % this.ram.length] = value;
-        this.ramUpdated = true;
-      } else {
-        // RTC Access
-        // FIXME: Implement this
-      }
+      this.ram[(this.ramBank * 0x2000 + (pos - 0xA000)) % this.ram.length] = value;
+      this.ramUpdated = true;
     }
   }
 
