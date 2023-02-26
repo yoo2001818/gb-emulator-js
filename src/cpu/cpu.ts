@@ -15,7 +15,7 @@ export class CPU {
   isTrapped = false;
   isTrapResolved = false;
 
-  isDebugging = true;
+  isDebugging = false;
   debugLogs: CPULog[] = [];
   opSizes: Uint8Array = new Uint8Array(0x10000);
   breakpoints: number[] = [];
@@ -33,7 +33,7 @@ export class CPU {
     this.clocks = 0;
     this.isInterruptsEnabled = false;
     this.isInterruptsEnabledNext = false;
-    this.isDebugging = true;
+    this.isDebugging = false;
     this.debugLogs = [];
     this.opSizes.fill(0);
   }

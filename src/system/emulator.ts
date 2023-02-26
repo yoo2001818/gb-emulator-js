@@ -10,6 +10,7 @@ import { Interrupter } from './interrupter';
 import { SystemTimer } from './timer';
 import { Cartridge, loadCartridge } from '../cartridge/cartridge';
 import { readSaveStorage, writeSaveStorage } from '../storage/saveStorage';
+import { getHex16 } from '../cpu/ops/utils';
 
 export class Emulator {
   cpu: CPU;
@@ -129,8 +130,11 @@ export class Emulator {
   
     // Start LCD clock
     if (this.isStepping) {
+      this.cpu.isDebugging = true;
+      this.cpu.debugLogs = [];
       this.lcd.runVblank = true;
     } else {
+      this.cpu.isDebugging = false;
       // this.lcd.runVblank = true;
       this.lcd.runVblank = false;
       this.lcd.resetClock();
@@ -163,15 +167,13 @@ export class Emulator {
       }
     }
     if (this.isStepping) {
-      console.log(this.lcd);
-      console.log(this.cpu.clocks, this.cpu.getDebugState());
-      console.log(this.interrupter.getDebugState());
-
-      const buffer = [];
-      for (let i = this.cpu.registers[REGISTER.SP]; i <= 0xcfff; i += 1) {
-        buffer.push(this.cpu.memory.read(i).toString(16));
+      for (const log of this.cpu.debugLogs) {
+        if (log.address != null) {
+          console.log('%c%s: %c%s; %c%s', 'color: #468cff', getHex16(log.address), 'color: inherit', log.data, 'color: gray', log.comment ?? '');
+        } else {
+          console.log(log.data, log.comment ?? '');
+        }
       }
-      console.log(buffer);
     }
     this.debugTextElem.innerText = [
       `CLK: ${this.cpu.clocks}`,
