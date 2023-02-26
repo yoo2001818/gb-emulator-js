@@ -30,6 +30,10 @@ export const ld_r_d8 =
 
 export const ld_a_a16: OpExec = (cpu, pc) => {
   const addr = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
+  if (!cpu.isTrapResolved && cpu.isBreakpointsEnabled && cpu.readBreakpoints.includes(addr)) {
+    cpu.isTrapped = true;
+    return;
+  }
   cpu.tick(2);
   const nn = cpu.memory.read(addr);
   cpu.registers[REGISTER.A] = nn;
@@ -42,6 +46,10 @@ export const ld_a_a16: OpExec = (cpu, pc) => {
 
 export const ld_a16_a: OpExec = (cpu, pc) => {
   const addr = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
+  if (!cpu.isTrapResolved && cpu.isBreakpointsEnabled && cpu.writeBreakpoints.includes(addr)) {
+    cpu.isTrapped = true;
+    return;
+  }
   cpu.tick(2);
   const value = cpu.registers[REGISTER.A];
   cpu.memory.write(addr, value);
@@ -54,6 +62,10 @@ export const ld_a16_a: OpExec = (cpu, pc) => {
 
 export const ld_a_c: OpExec = (cpu, pc) => {
   const addr = (0xff00 + cpu.registers[REGISTER.C]) & 0xffff;
+  if (!cpu.isTrapResolved && cpu.isBreakpointsEnabled && cpu.readBreakpoints.includes(addr)) {
+    cpu.isTrapped = true;
+    return;
+  }
   const nn = cpu.memory.read(addr);
   cpu.registers[REGISTER.A] = nn;
   cpu.skip(1);
@@ -65,6 +77,10 @@ export const ld_a_c: OpExec = (cpu, pc) => {
 
 export const ld_c_a: OpExec = (cpu, pc) => {
   const addr = (0xff00 + cpu.registers[REGISTER.C]) & 0xffff;
+  if (!cpu.isTrapResolved && cpu.isBreakpointsEnabled && cpu.writeBreakpoints.includes(addr)) {
+    cpu.isTrapped = true;
+    return;
+  }
   const value = cpu.registers[REGISTER.A];
   cpu.memory.write(addr, value);
   cpu.skip(1);
@@ -78,6 +94,10 @@ export const ld_a_r16 =
   (r2: Register16Description): OpExec =>
   (cpu, pc) => {
     const addr = r2.read(cpu);
+    if (!cpu.isTrapResolved && cpu.isBreakpointsEnabled && cpu.readBreakpoints.includes(addr)) {
+      cpu.isTrapped = true;
+      return;
+    }
     const nn = cpu.memory.read(addr);
     cpu.registers[REGISTER.A] = nn;
     cpu.skip(1);
@@ -92,6 +112,10 @@ export const ld_r16_a =
   (r1: Register16Description): OpExec =>
   (cpu, pc) => {
     const addr = r1.read(cpu);
+    if (!cpu.isTrapResolved && cpu.isBreakpointsEnabled && cpu.writeBreakpoints.includes(addr)) {
+      cpu.isTrapped = true;
+      return;
+    }
     const nn = cpu.registers[REGISTER.A];
     cpu.memory.write(addr, nn);
     cpu.skip(1);
@@ -104,6 +128,10 @@ export const ld_r16_a =
 
 export const ldh_a8_a: OpExec = (cpu, pc) => {
   const addr = (0xff00 + cpu.memory.read(pc + 1)) & 0xffff;
+  if (!cpu.isTrapResolved && cpu.isBreakpointsEnabled && cpu.writeBreakpoints.includes(addr)) {
+    cpu.isTrapped = true;
+    return;
+  }
   cpu.tick(1);
   const value = cpu.registers[REGISTER.A];
   cpu.memory.write(addr, value);
@@ -116,6 +144,10 @@ export const ldh_a8_a: OpExec = (cpu, pc) => {
 
 export const ldh_a_a8: OpExec = (cpu, pc) => {
   const addr = (0xff00 + cpu.memory.read(pc + 1)) & 0xffff;
+  if (!cpu.isTrapResolved && cpu.isBreakpointsEnabled && cpu.readBreakpoints.includes(addr)) {
+    cpu.isTrapped = true;
+    return;
+  }
   cpu.tick(1);
   const nn = cpu.memory.read(addr);
   cpu.tick(2);
@@ -141,6 +173,10 @@ export const ld16_r_d16 =
 
 export const ld16_a16_sp: OpExec = (cpu, pc) => {
   const addr = cpu.memory.read(pc + 1) | (cpu.memory.read(pc + 2) << 8);
+  if (!cpu.isTrapResolved && cpu.isBreakpointsEnabled && cpu.writeBreakpoints.includes(addr)) {
+    cpu.isTrapped = true;
+    return;
+  }
   const value = cpu.registers[REGISTER.SP];
   cpu.memory.write(addr, value & 0xff);
   cpu.memory.write(addr + 1, (value >>> 8) & 0xff);

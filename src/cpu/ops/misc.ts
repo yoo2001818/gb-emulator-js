@@ -135,7 +135,7 @@ export const daa: OpExec = (cpu, pc) => {
   cpu.skip(1);
   cpu.tick(1);
   if (cpu.isDebugging) {
-    cpu.log('op', `daa`, pc, `a=${getHex8(value & 0xff)} ${cpu.getDebugFlags}`);
+    cpu.log('op', `daa`, pc, `a=${getHex8(value & 0xff)} ${cpu.getDebugFlags()}`);
   }
 };
 
@@ -146,7 +146,7 @@ export const cpl: OpExec = (cpu, pc) => {
   cpu.skip(1);
   cpu.tick(1);
   if (cpu.isDebugging) {
-    cpu.log('op', `cpl`, pc, `a=${getHex8(result & 0xff)} ${cpu.getDebugFlags}`);
+    cpu.log('op', `cpl`, pc, `a=${getHex8(result & 0xff)} ${cpu.getDebugFlags()}`);
   }
 };
 
@@ -155,7 +155,7 @@ export const ccf: OpExec = (cpu, pc) => {
   cpu.skip(1);
   cpu.tick(1);
   if (cpu.isDebugging) {
-    cpu.log('op', `ccf`, pc, `${cpu.getDebugFlags}`);
+    cpu.log('op', `ccf`, pc, `${cpu.getDebugFlags()}`);
   }
 };
 
@@ -164,7 +164,7 @@ export const scf: OpExec = (cpu, pc) => {
   cpu.skip(1);
   cpu.tick(1);
   if (cpu.isDebugging) {
-    cpu.log('op', `scf`, pc, `${cpu.getDebugFlags}`);
+    cpu.log('op', `scf`, pc, `${cpu.getDebugFlags()}`);
   }
 };
 

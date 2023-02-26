@@ -18,6 +18,7 @@ export class CPU {
   isDebugging = false;
   debugLogs: CPULog[] = [];
   opSizes: Uint8Array = new Uint8Array(0x10000);
+  isBreakpointsEnabled = false;
   breakpoints: number[] = [];
   readBreakpoints: number[] = [];
   writeBreakpoints: number[] = [];
@@ -122,13 +123,11 @@ export class CPU {
   step(): void {
     this.isInterruptsEnabled = this.isInterruptsEnabledNext;
     const pc = this.registers[REGISTER.PC];
-    /*
-    if (!this.isTrapResolved && ([0xc2c5].includes(pc))) {
-      console.log('Trapped', pc.toString(16), this.clocks);
+    if (!this.isTrapResolved && this.isBreakpointsEnabled && (this.breakpoints.includes(pc))) {
       this.isTrapped = true;
+      this.isDebugging = true;
       return;
     }
-    */
     this.isTrapResolved = false;
     const opcode = this.memory.read(pc);
     const op_exec = main_opcodes[opcode];
