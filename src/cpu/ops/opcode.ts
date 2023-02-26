@@ -68,10 +68,10 @@ import {
 import { r16s_1, r16s_2, r16s_3, r16_hl, r8s, r8_a } from './register';
 
 const prefix_opcodes = generateLUTRules(256, [
-  ['00ooorrr', ({ o, r }) => alu_unary(unary_ops[o], r8s[r], 8)], // (unary_op) r
-  ['01nnnrrr', ({ n, r }) => alu_unary_read(alu_bit(n), r8s[r], 8)], // bit n, r
-  ['10nnnrrr', ({ n, r }) => alu_unary(alu_res(n), r8s[r], 8)], // res n, r
-  ['11nnnrrr', ({ n, r }) => alu_unary(alu_set(n), r8s[r], 8)], // set n, r
+  ['00ooorrr', ({ o, r }) => alu_unary(unary_ops[o], r8s[r], 2)], // (unary_op) r
+  ['01nnnrrr', ({ n, r }) => alu_unary_read(alu_bit(n), r8s[r], 2)], // bit n, r
+  ['10nnnrrr', ({ n, r }) => alu_unary(alu_res(n), r8s[r], 2)], // res n, r
+  ['11nnnrrr', ({ n, r }) => alu_unary(alu_set(n), r8s[r], 2)], // set n, r
 ]);
 
 const read_prefix: OpExec = (cpu, pc) => {
@@ -94,13 +94,13 @@ export const main_opcodes = generateLUTRules(256, [
   // BC, DE, HL+, HL-
   ['00RR0010', ({ R }) => ld_r16_a(r16s_2[R])], // ld16 (r), a
   ['00RR1010', ({ R }) => ld_a_r16(r16s_2[R])], // ld16 a, (r)
-  ['00rrr100', ({ r }) => alu_unary(alu_inc, r8s[r], 4)], // inc r
-  ['00rrr101', ({ r }) => alu_unary(alu_dec, r8s[r], 4)], // dec r
+  ['00rrr100', ({ r }) => alu_unary(alu_inc, r8s[r], 1)], // inc r
+  ['00rrr101', ({ r }) => alu_unary(alu_dec, r8s[r], 1)], // dec r
   ['00rrr110', ({ r }) => ld_r_d8(r8s[r])], // ld r, d8
-  ['00000111', () => alu_unary(alu_rlc(false), r8_a, 4)], // rlca
-  ['00001111', () => alu_unary(alu_rrc(false), r8_a, 4)], // rrca
-  ['00010111', () => alu_unary(alu_rl(false), r8_a, 4)], // rla
-  ['00011111', () => alu_unary(alu_rr(false), r8_a, 4)], // rra
+  ['00000111', () => alu_unary(alu_rlc(false), r8_a, 1)], // rlca
+  ['00001111', () => alu_unary(alu_rrc(false), r8_a, 1)], // rrca
+  ['00010111', () => alu_unary(alu_rl(false), r8_a, 1)], // rla
+  ['00011111', () => alu_unary(alu_rr(false), r8_a, 1)], // rra
   ['00100111', () => daa],
   ['00101111', () => cpl],
   ['00110111', () => scf],

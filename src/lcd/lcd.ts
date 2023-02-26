@@ -237,8 +237,6 @@ export class LCD implements Memory {
    * Called in each requestAnimationFrame to reset the data to V-Blank state.
    */
   resetClock(): void {
-    // FIXME: If we weren't able to finish the frame, an interrupt must be
-    // generated.
     this.ly = VBLANK_LY;
     this.lineClock = 0;
     this.clocks = 0;
@@ -247,15 +245,15 @@ export class LCD implements Memory {
 
   getNextWakeupClockAdvance(): number {
     if (this.ly >= VBLANK_LY) {
-      return LINE_CLOCK_VBLANK - this.lineClock;
+      return (LINE_CLOCK_VBLANK - this.lineClock) / 4;
     }
     if (this.lineClock < LINE_CLOCK_MODE_2) {
-      return LINE_CLOCK_MODE_2 - this.lineClock;
+      return (LINE_CLOCK_MODE_2 - this.lineClock) / 4;
     }
     if (this.lineClock < LINE_CLOCK_MODE_23) {
-      return LINE_CLOCK_MODE_23 - this.lineClock;
+      return (LINE_CLOCK_MODE_23 - this.lineClock) / 4;
     }
-    return LINE_CLOCK_MODE_230 - this.lineClock;
+    return (LINE_CLOCK_MODE_230 - this.lineClock) / 4;
   }
 
   advanceClock(): void {
@@ -285,7 +283,7 @@ export class LCD implements Memory {
     } else if (this.lineClock === LINE_CLOCK_MODE_230) {
       // HBlank
       if (this.ly === VBLANK_LY - 1 && !this.runVblank) {
-        this.lineClock = LINE_CLOCK_MODE_230 - 1;
+        this.lineClock = LINE_CLOCK_MODE_230 - 4;
         return;
       }
       this.ly += 1;

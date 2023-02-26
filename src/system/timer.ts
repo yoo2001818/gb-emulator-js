@@ -39,7 +39,7 @@ export class SystemTimer implements Memory {
       const tickRate = TIMA_TICK_RATES[this.tac & 0x3];
       const curTime = this.clocks - (this.clocks % tickRate);
       const triggersNeeded = 0x100 - this.tima;
-      return (curTime + triggersNeeded * tickRate) - this.clocks;
+      return ((curTime + triggersNeeded * tickRate) - this.clocks) / 4;
 
     }
     return 0x7fffffff;
@@ -60,9 +60,9 @@ export class SystemTimer implements Memory {
       // (https://gbdev.io/pandocs/Timer_Obscure_Behaviour.html)
       // Since we don't get to emulate every cycle (this is doable though),
       // we simply derive the increment count from the number of triggers
-      const nPeriod = TIMA_TICK_RATES[this.tac & 0x3];
-      const oldBit = (this.clocks & nPeriod) !== 0;
-      const newBit = ((this.clocks + 4) & nPeriod) !== 0;
+      const nBits = TIMA_TICK_BITS[this.tac & 0x3];
+      const oldBit = (this.clocks & nBits) !== 0;
+      const newBit = ((this.clocks + 4) & nBits) !== 0;
       if (oldBit && !newBit) {
         this.tima += 1;
         this._postUpdateTIMA();

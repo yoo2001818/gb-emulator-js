@@ -108,7 +108,7 @@ export const alu_binary_imm =
 export const alu_unary =
   (op: ALUUnaryOp, r: Register8Description, clocks: number): OpExec =>
   (cpu) => {
-    if (clocks === 4) {
+    if (clocks === 1) {
       const n = r.read(cpu);
       if (r.clocks > 0) cpu.tick(r.clocks);
       r.write(cpu, op(cpu, n));

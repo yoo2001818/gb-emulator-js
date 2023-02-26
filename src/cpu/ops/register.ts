@@ -18,7 +18,7 @@ export const r8_simple = (register_id: Register): Register8Description => ({
 export const r8_hl: Register8Description = {
   read: (cpu) => cpu.memory.read(cpu.readHL()),
   write: (cpu, value) => cpu.memory.write(cpu.readHL(), value),
-  clocks: 4,
+  clocks: 1,
 };
 
 export const r8_a = r8_simple(REGISTER.A);

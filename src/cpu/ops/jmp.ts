@@ -54,7 +54,7 @@ export const jr_cond_r8 =
       cpu.tick(3);
     } else {
       cpu.skip(2);
-      cpu.tick(1);
+      cpu.tick(2);
     }
   };
 

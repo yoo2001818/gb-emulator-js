@@ -65,10 +65,10 @@ export class Emulator {
     memoryBus.cpu = this.cpu;
     this.cpu.onTick = (elapsedClocks) => {
       for (let i = 0; i < elapsedClocks; i += 1) {
-      // Run I/O
-      this.lcd.advanceClock();
-      this.timer.advanceClock();
-      this.apu.advanceClock();
+        // Run I/O
+        this.lcd.advanceClock();
+        this.timer.advanceClock();
+        this.apu.advanceClock();
       }
     };
     this.reboot();
@@ -150,7 +150,7 @@ export class Emulator {
     // stopClock = this.cpu.clocks + 37069345;
     // 866980
     if (this.isStepping) {
-      stopClock = this.cpu.clocks + 4;
+      stopClock = this.cpu.clocks + 1;
       this.isRunning = false;
       this.cpu.isTrapResolved = true;
       this.cpu.isTrapped = false;
