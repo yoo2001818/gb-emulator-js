@@ -245,15 +245,6 @@ export class LCD implements Memory {
     this.handleLineChange();
   }
 
-  _stepUntil(max: number, remaining: number, callback: () => void): number {
-    let advClocks = Math.min(max - this.lineClock, remaining);
-    this.lineClock += advClocks;
-    if (this.lineClock >= max) {
-      callback();
-    } 
-    return remaining - advClocks;
-  }
-
   getNextWakeupClockAdvance(): number {
     if (this.ly >= VBLANK_LY) {
       return LINE_CLOCK_VBLANK - this.lineClock;
@@ -267,57 +258,39 @@ export class LCD implements Memory {
     return LINE_CLOCK_MODE_230 - this.lineClock;
   }
 
-  // NOTE: The clock may not directly correspond to the CPU.
-  advanceClock(clocks: number): void {
+  advanceClock(): void {
     // Run DMA operation
-    let dmaRemaining = clocks;
-    while (this.dmaPos >= 0 && this.dmaPos < 160 && dmaRemaining > 0) {
-      const incClocks = Math.min(4 - this.dmaClocks, dmaRemaining);
-      this.dmaClocks += incClocks;
-      dmaRemaining -= incClocks;
-      if (this.dmaClocks >= 4) {
-        this.dmaClocks = 0;
-        const pos = this.dmaPos;
-        const memory = this.interrupter.cpu.memory;
-        this.oam.bytes[pos] = memory.read(this.dmaSrc + pos);
-        this.dmaPos += 1;
-      }
+    if (this.dmaPos >= 0) {
+      const pos = this.dmaPos;
+      const memory = this.interrupter.cpu.memory;
+      this.oam.bytes[pos] = memory.read(this.dmaSrc + pos);
+      this.dmaPos += 1;
       if (this.dmaPos >= 160) {
         this.dmaPos = -1;
-        break;
       }
     }
-    // If not enabled, stop the LCD clock
-    let remaining = clocks;
-    while (remaining > 0) {
-      if (this.ly >= VBLANK_LY) {
-        // Advance VBlank timing
-        remaining = this._stepUntil(LINE_CLOCK_VBLANK, remaining, () => {
-          this.ly += 1;
-          this.handleLineChange();
-        });
-      } else if (this.lineClock < LINE_CLOCK_MODE_2) {
-        // Advance OAM timing
-        remaining = this._stepUntil(LINE_CLOCK_MODE_2, remaining, () => {
-          this.handleMode3Enter();
-        });
-      } else if (this.lineClock < LINE_CLOCK_MODE_23) {
-        // Advance render timing
-        remaining = this._stepUntil(LINE_CLOCK_MODE_23, remaining, () => {
-          this.handleMode0Enter();
-        });
-      } else {
-        if (this.ly === VBLANK_LY - 1 && !this.runVblank) {
-          // Do nothing if we are asked to stop at vblank
-          return;
-        }
-        // Advance VBlank timing
-        remaining = this._stepUntil(LINE_CLOCK_MODE_230, remaining, () => {
-          this.ly += 1;
-          this.handleLineChange();
-        });
+    this.lineClock += 4;
+    if (this.ly >= VBLANK_LY) {
+      // VBlank
+      if (this.lineClock >= LINE_CLOCK_VBLANK) {
+        this.ly += 1;
+        this.handleLineChange();
       }
+    } else if (this.lineClock === LINE_CLOCK_MODE_2) {
+      // OAM
+      this.handleMode3Enter();
+    } else if (this.lineClock === LINE_CLOCK_MODE_23) {
+      // Render
+      this.handleMode0Enter();
+    } else if (this.lineClock === LINE_CLOCK_MODE_230) {
+      // HBlank
+      if (this.ly === VBLANK_LY - 1 && !this.runVblank) {
+        this.lineClock = LINE_CLOCK_MODE_230 - 1;
+        return;
+      }
+      this.ly += 1;
+      this.handleLineChange();
     }
-    this.clocks += clocks;
+    this.clocks += 1;
   }
 }

@@ -72,7 +72,7 @@ export class CPU {
     this.memory.write(sp - 1, (value >>> 8) & 0xff);
     this.memory.write(sp - 2, value & 0xff);
     this.registers[REGISTER.SP] = (this.registers[REGISTER.SP] - 2) & 0xffff;
-    this.tick(4 * 5);
+    this.tick(5);
   }
 
   getDebugState(): string {
@@ -104,7 +104,7 @@ export class CPU {
       // Illegal instruction
       // (We skip it through)
       this.skip(1);
-      this.tick(4);
+      this.tick(1);
     }
   }
 

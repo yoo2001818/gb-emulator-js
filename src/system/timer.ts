@@ -53,8 +53,7 @@ export class SystemTimer implements Memory {
     }
   }
 
-  // NOTE: The clock may not directly correspond to the CPU.
-  advanceClock(clocks: number): void {
+  advanceClock(): void {
     if (this.tac & 0x4) {
       // Tick the clock according to the clock
       // Note that this needs to be in sync with "clocks" variable
@@ -62,22 +61,14 @@ export class SystemTimer implements Memory {
       // Since we don't get to emulate every cycle (this is doable though),
       // we simply derive the increment count from the number of triggers
       const nPeriod = TIMA_TICK_RATES[this.tac & 0x3];
-      // Let's say nPeriod is 16 - the GB hardware implements this by falling
-      // edge detector on bit 3, that is, it is triggered every time when "1"
-      // becomes "0" - this only happens when "1111" becomes "0000", given that
-      // the timer keeps incrementing monotonically.
-      // In other sense, it becomes triggered whenever (clk % 16) == 0 becomes
-      // false to true.
-      // Starting from this reference point, the clocks elapsed can be directly
-      // divided by nPeriod to retrive the required increments of TIMA register.
-      const newClocks = this.clocks + clocks;
-      const newId = Math.floor(newClocks / nPeriod);
-      const oldId = Math.floor(this.clocks / nPeriod);
-      const steps = newId - oldId;
-      this.tima += steps;
-      this._postUpdateTIMA();
+      const oldBit = (this.clocks & nPeriod) !== 0;
+      const newBit = ((this.clocks + 4) & nPeriod) !== 0;
+      if (oldBit && !newBit) {
+        this.tima += 1;
+        this._postUpdateTIMA();
+      }
     }
-    this.clocks += clocks;
+    this.clocks += 4;
   }
 
   read(pos: number): number {

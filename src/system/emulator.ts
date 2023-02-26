@@ -64,10 +64,12 @@ export class Emulator {
     this.cpu.memory = memoryBus;
     memoryBus.cpu = this.cpu;
     this.cpu.onTick = (elapsedClocks) => {
+      for (let i = 0; i < elapsedClocks; i += 1) {
       // Run I/O
-      this.lcd.advanceClock(elapsedClocks);
-      this.timer.advanceClock(elapsedClocks);
-      this.apu.advanceClock(elapsedClocks);
+      this.lcd.advanceClock();
+      this.timer.advanceClock();
+      this.apu.advanceClock();
+      }
     };
     this.reboot();
   }
@@ -135,8 +137,8 @@ export class Emulator {
     }
 
     // Run system until stopped
-    // 4.194304MHz -> Around 70000 clocks per each frame
-    let stopClock = this.cpu.clocks + 70224;
+    // 4.194304MHz -> Around 70224 clocks per each frame (17556 M-clocks)
+    let stopClock = this.cpu.clocks + 17556;
     // let stop_clock = this.cpu.clocks + 796976;
     // SRAM - 855528
     // let stop_clock = this.cpu.clocks + 861344;

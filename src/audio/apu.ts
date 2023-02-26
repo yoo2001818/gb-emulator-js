@@ -148,8 +148,8 @@ export class APU implements Memory {
   }
 
   // NOTE: The clock may not directly correspond to the CPU.
-  advanceClock(clocks: number): void {
-    this.clocks += clocks;
+  advanceClock(): void {
+    this.clocks += 4;
     const futurePos = Math.floor(this.clocks / CLOCKS_PER_SAMPLE);
     while (this.bufferPos < futurePos) {
       this.step(Math.floor(CLOCKS_PER_SAMPLE));

@@ -92,7 +92,7 @@ export const alu_binary =
     const n2 = r2.read(cpu);
     cpu.registers[REGISTER.A] = op(cpu, n1, n2);
     cpu.skip(1);
-    cpu.tick(4 + r2.clocks);
+    cpu.tick(1 + r2.clocks);
   };
 
 export const alu_binary_imm =
@@ -102,7 +102,7 @@ export const alu_binary_imm =
     const n2 = cpu.memory.read(pc + 1);
     cpu.registers[REGISTER.A] = op(cpu, n1, n2);
     cpu.skip(2);
-    cpu.tick(8);
+    cpu.tick(2);
   };
 
 export const alu_unary =
