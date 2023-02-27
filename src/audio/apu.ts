@@ -57,7 +57,11 @@ export class APU implements Memory {
     if (this.audioContext != null) return;
     this.audioContext = new AudioContext({ sampleRate: SAMPLE_RATE });
     await this.audioContext.audioWorklet.addModule('/audioWorklet.js');
-    this.audioWorkletNode = new AudioWorkletNode(this.audioContext!, 'gb-passthrough');
+    this.audioWorkletNode = new AudioWorkletNode(
+      this.audioContext!,
+      'gb-passthrough',
+      { numberOfOutputs: 1, outputChannelCount: [2] },
+    );
     const biquadFilter = new BiquadFilterNode(this.audioContext!, {
       type: 'highpass',
       Q: 10,
