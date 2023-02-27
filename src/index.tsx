@@ -3,6 +3,7 @@ import { LCD_HEIGHT, LCD_WIDTH } from './lcd/lcd';
 import { dumpVRAM } from './system/dumpVRAM';
 import { Emulator } from './system/emulator';
 import { BUTTON } from './system/gamepad';
+import { downloadFile } from './utils/downloadFile';
 
 const CONTROLS_MAP: Record<string, number | undefined> = {
   z: BUTTON.B,
@@ -16,7 +17,7 @@ const CONTROLS_MAP: Record<string, number | undefined> = {
 };
 
 async function loadROM() {
-  const res = await fetch('/pokemon_red.gb');
+  const res = await fetch('/pokemon_gold.gb');
   const array_buffer = await res.arrayBuffer();
   const buffer = new Uint8Array(array_buffer);
   return buffer;
@@ -86,6 +87,14 @@ async function start() {
         dumpVRAM(emulator.lcd);
         break;
       }
+      case 't': {
+        emulator.isRunning = true;
+        emulator.isStepping = false;
+        // Run 1 frame
+        emulator.update();
+        emulator.isRunning = false;
+        break;
+      }
       case 's': {
         emulator.cpu.isBreakpointsEnabled = !emulator.cpu.isBreakpointsEnabled;
         break;
@@ -93,16 +102,7 @@ async function start() {
       case '1': {
         const data = emulator.getSRAM();
         if (data != null) {
-          // TODO: Cleanup
-          const blob = new Blob([data]);
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = emulator.cartridge!.info.title + '.sav';
-          document.body.appendChild(a);
-          a.style.display = 'none';
-          a.click();
-          a.remove();
+          downloadFile(emulator.cartridge!.info.title + '.sav', data);
         }
         break;
       }
@@ -114,6 +114,12 @@ async function start() {
       case '3': {
         if (storedState != null) {
           emulator.deserialize(storedState);
+        }
+        break;
+      }
+      case '4': {
+        if (storedState != null) {
+          downloadFile(emulator.cartridge!.info.title + '.state', JSON.stringify(storedState));
         }
         break;
       }
@@ -142,21 +148,32 @@ async function start() {
     const files = e.dataTransfer?.files ?? [];
     if (files[0] != null) {
       const file = files[0];
-      const reader = new FileReader();
-      reader.onload = async (e2) => {
-        const array_buffer = e2.target!.result as ArrayBuffer;
-        const buffer = new Uint8Array(array_buffer);
-        if (file.name.endsWith('.sav')) {
-          emulator.loadSRAMFromFile(buffer);
-          emulator.reboot();
-          emulator.start();
-        } else {
-          await emulator.load(buffer);
-          emulator.reboot();
-          emulator.start();
-        }
-      };
-      reader.readAsArrayBuffer(file);
+      if (file.name.endsWith('.state')) {
+        const reader = new FileReader();
+        reader.onload = async (e2) => {
+          const json = e2.target!.result as string;
+          const data = JSON.parse(json);
+          storedState = data;
+          emulator.deserialize(data);
+        };
+        reader.readAsText(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = async (e2) => {
+          const array_buffer = e2.target!.result as ArrayBuffer;
+          const buffer = new Uint8Array(array_buffer);
+          if (file.name.endsWith('.sav')) {
+            emulator.loadSRAMFromFile(buffer);
+            emulator.reboot();
+            emulator.start();
+          } else {
+            await emulator.load(buffer);
+            emulator.reboot();
+            emulator.start();
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      }
     }
   });
   

@@ -57,7 +57,6 @@ const SERIALIZE_FIELDS: (keyof LCD)[] = [
   'lineClock',
   'clocks',
   'mode',
-  'runVblank',
   'dmaSrc',
   'dmaPos',
 ];
@@ -79,7 +78,6 @@ export class LCD implements Memory {
   lineClock: number = 0;
   clocks: number = 0;
   mode: number = 0;
-  runVblank: boolean = false;
   dmaSrc: number = 0;
   dmaPos: number = -1;
   framebuffer!: Uint16Array;
@@ -255,6 +253,7 @@ export class LCD implements Memory {
         this.interrupter.queueInterrupt(INTERRUPT_TYPE.LCDC);
       }
     } else if (this.ly === VBLANK_LY) {
+      this.clocks = 0;
       this.mode = 1;
       if (this.stat & 0x10) {
         // V-blank interrupt requested
@@ -301,6 +300,14 @@ export class LCD implements Memory {
     return (LINE_CLOCK_MODE_230 - this.lineClock) / 4;
   }
 
+  getRemainingClockUntilVblank(): number {
+    if ((this.lcdc & 0x80) === 0) {
+      // LCD turned off; assume 17556 clocks
+      return 17556;
+    }
+    return 17556 - this.clocks + 1;
+  }
+
   advanceClock(): void {
     // Run DMA operation
     if (this.dmaPos >= 0) {
@@ -331,10 +338,6 @@ export class LCD implements Memory {
       this.handleMode0Enter();
     } else if (this.lineClock === LINE_CLOCK_MODE_230) {
       // HBlank
-      if (this.ly === VBLANK_LY - 1 && !this.runVblank) {
-        this.lineClock = LINE_CLOCK_MODE_230 - 4;
-        return;
-      }
       this.ly += 1;
       this.handleLineChange();
     }

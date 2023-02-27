@@ -43,12 +43,18 @@ export class CPU {
     const output: any = {};
     output.registers = [...this.registers];
     output.clocks = this.clocks;
+    output.isRunning = this.isRunning;
+    output.isInterruptsEnabled = this.isInterruptsEnabled;
+    output.isInterruptsEnabledNext = this.isInterruptsEnabledNext;
     return output;
   }
 
   deserialize(data: any): void {
     this.registers = [...data.registers];
     this.clocks = data.clocks;
+    this.isRunning = data.isRunning;
+    this.isInterruptsEnabled = data.isInterruptsEnabled;
+    this.isInterruptsEnabledNext = data.isInterruptsEnabledNext;
   }
 
   getDebugFlags(): string {

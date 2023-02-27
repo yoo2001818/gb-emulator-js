@@ -155,17 +155,13 @@ export class Emulator {
     if (this.isStepping) {
       this.cpu.isDebugging = true;
       this.cpu.debugLogs = [];
-      this.lcd.runVblank = true;
     } else {
       this.cpu.isDebugging = false;
-      // this.lcd.runVblank = true;
-      this.lcd.runVblank = false;
-      this.lcd.resetClock();
     }
 
     // Run system until stopped
     // 4.194304MHz -> Around 70224 clocks per each frame (17556 M-clocks)
-    let stopClock = this.cpu.clocks + 17556;
+    let stopClock = this.cpu.clocks + this.lcd.getRemainingClockUntilVblank();
     if (this.isStepping) {
       stopClock = this.cpu.clocks + 1;
       this.isRunning = false;
