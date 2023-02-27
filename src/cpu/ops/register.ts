@@ -49,7 +49,7 @@ export const r16_af: Register16Description = {
   read: (cpu) => (cpu.registers[REGISTER.A] << 8) | cpu.registers[REGISTER.F],
   write: (cpu, value) => {
     cpu.registers[REGISTER.A] = (value >>> 8) & 0xff;
-    cpu.registers[REGISTER.F] = value & 0xf0;
+    cpu.registers[REGISTER.F] = value & 0xff;
   },
   postCallback: () => {},
 };

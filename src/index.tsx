@@ -84,6 +84,10 @@ async function start() {
         dumpVRAM(emulator.lcd);
         break;
       }
+      case 's': {
+        emulator.cpu.isBreakpointsEnabled = !emulator.cpu.isBreakpointsEnabled;
+        break;
+      }
       case '1': {
         const data = emulator.getSRAM();
         if (data != null) {

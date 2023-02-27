@@ -242,6 +242,7 @@ export const reti: OpExec = (cpu, pc) => {
   cpu.skip(1);
   cpu.registers[REGISTER.PC] = value;
   // enable interrupts
+  cpu.isInterruptsEnabled = true;
   cpu.isInterruptsEnabledNext = true;
   if (cpu.isDebugging) {
     cpu.log('op', 'reti', pc, `pc=${getHex16(value)} sp=${getHex16(spNext)}`);

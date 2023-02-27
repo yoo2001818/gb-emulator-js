@@ -58,7 +58,7 @@ export class Interrupter {
       // Check if an interrupt should occur
       const ifReg = memory.read(IF_ADDR);
       const ieReg = memory.read(IE_ADDR);
-      let interruptReg = ieReg & ifReg;
+      let interruptReg = ieReg & ifReg & 0x03;
       if (interruptReg) {
         // Check which type is generated 
         let interruptType = 0;
@@ -72,6 +72,7 @@ export class Interrupter {
           // Clear IF register of the type
           memory.write(IF_ADDR, ifReg & ~(1 << interruptType));
           // Generate interrupts
+          const prevPc = this.cpu.registers[REGISTER.PC];
           this.cpu.enterInterrupt();
           const addr = 0x40 + (interruptType * 8);
           this.cpu.jump(addr);
@@ -80,7 +81,7 @@ export class Interrupter {
               'event',
               `Interrupt ${interruptType} (${INTERRUPT_NAMES[interruptType]})`,
               undefined,
-              `pc=${getHex16(addr)} sp=${getHex16(this.cpu.registers[REGISTER.SP])}`,
+              `pc=${getHex16(addr)} (was ${getHex16(prevPc)}) sp=${getHex16(this.cpu.registers[REGISTER.SP])}`,
             );
           }
         } else {

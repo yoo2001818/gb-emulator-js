@@ -11,6 +11,8 @@ export class SystemTimer implements Memory {
   tima: number = 0;
   tma: number = 0;
   tac: number = 0;
+  // https://gbdev.io/pandocs/Timer_Obscure_Behaviour.html#timer-overflow-behaviour
+  timaDelayed: boolean = false;
 
   constructor(interrupter: Interrupter) {
     this.interrupter = interrupter;
@@ -22,6 +24,7 @@ export class SystemTimer implements Memory {
     this.tima = 0;
     this.tma = 0;
     this.tac = 0;
+    this.timaDelayed = false;
   }
 
   getDebugState(): string {
@@ -39,7 +42,7 @@ export class SystemTimer implements Memory {
       const tickRate = TIMA_TICK_RATES[this.tac & 0x3];
       const curTime = this.clocks - (this.clocks % tickRate);
       const triggersNeeded = 0x100 - this.tima;
-      return ((curTime + triggersNeeded * tickRate) - this.clocks) / 4;
+      return ((curTime + triggersNeeded * tickRate) - this.clocks) / 4 + 1;
 
     }
     return 0x7fffffff;
@@ -47,13 +50,20 @@ export class SystemTimer implements Memory {
 
   _postUpdateTIMA(): void {
     if (this.tima > 0xff) {
-      this.tima = (this.tma + this.tima) & 0xff;
-      // Generate interrupt
-      this.interrupter.queueInterrupt(INTERRUPT_TYPE.TIMER_OVERFLOW);
+      this.timaDelayed = true;
+      this.tima = 0x100;
     }
   }
 
   advanceClock(): void {
+    if (this.timaDelayed) {
+      this.timaDelayed = false;
+      if (this.tima > 0xff) {
+        this.tima = this.tma & 0xff;
+        // Generate interrupt
+        this.interrupter.queueInterrupt(INTERRUPT_TYPE.TIMER_OVERFLOW);
+      }
+    }
     if (this.tac & 0x4) {
       // Tick the clock according to the clock
       // Note that this needs to be in sync with "clocks" variable

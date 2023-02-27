@@ -174,6 +174,7 @@ export class Emulator {
           console.log(log.data, log.comment ?? '');
         }
       }
+      this.cpu.debugLogs = [];
     }
     this.debugTextElem.innerText = [
       `CLK: ${this.cpu.clocks}`,

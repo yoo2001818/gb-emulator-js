@@ -86,11 +86,9 @@ export class CPU {
   }
 
   log(type: CPULog['type'], data: string, address?: number, comment?: string): void {
-    if (this.isDebugging) {
-      this.debugLogs.push({ type, data, address, comment });
-      if (this.debugLogs.length > 1000) {
-        this.debugLogs.shift();
-      }
+    this.debugLogs.push({ type, data, address, comment });
+    if (this.debugLogs.length > 1000) {
+      this.debugLogs.shift();
     }
   }
 
