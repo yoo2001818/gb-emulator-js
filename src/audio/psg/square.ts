@@ -7,6 +7,14 @@ const DUTY_CYCLE_TABLE = [
   0xFE, 0x7E, 0x78, 0x81,
 ];
 
+const SERIALIZE_FIELDS: (keyof SquarePSG)[] = [
+  'enabled',
+  'phase',
+  'phaseClock',
+  'wavelength',
+  'dutyCycle',
+];
+
 export class SquarePSG implements PSG {
   output: number = 0;
   enabled: boolean = false;
@@ -42,6 +50,22 @@ export class SquarePSG implements PSG {
     this.sweep.reset();
     this.envelope.reset();
     this.length.reset();
+  }
+
+  serialize(): any {
+    const output: any = {};
+    SERIALIZE_FIELDS.forEach((key) => output[key] = this[key]);
+    output.sweep = this.sweep.serialize();
+    output.envelope = this.envelope.serialize();
+    output.length = this.length.serialize();
+    return output;
+  }
+
+  deserialize(data: any): void {
+    SERIALIZE_FIELDS.forEach((key) => (this[key] as any) = data[key]);
+    this.sweep.deserialize(data.sweep);
+    this.envelope.deserialize(data.envelope);
+    this.length.deserialize(data.length);
   }
 
   trigger(): void {

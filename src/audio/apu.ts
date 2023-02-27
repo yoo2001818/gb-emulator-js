@@ -16,6 +16,13 @@ const FRAMERATE = 60;
 const SAMPLE_SIZE = Math.ceil(SAMPLE_RATE / FRAMERATE);
 const SAMPLE_WRITE_SIZE = Math.ceil(SAMPLE_RATE / FRAMERATE);
 
+const SERIALIZE_FIELDS: (keyof APU)[] = [
+  'clocks',
+  'nr50',
+  'nr51',
+  'nr52',
+];
+
 export class APU implements Memory {
   audioContext: AudioContext | null;
   audioWorkletNode: AudioWorkletNode | null;
@@ -69,6 +76,21 @@ export class APU implements Memory {
     this.nr50 = 0;
     this.nr51 = 0;
     this.nr52 = 0;
+  }
+  
+  serialize(): any {
+    const output: any = {};
+    output.waveTable = this.waveTable.serialize();
+    output.psgs = this.psgs.map((psg) => psg.serialize());
+    SERIALIZE_FIELDS.forEach((key) => output[key] = this[key]);
+    return output;
+  }
+
+  deserialize(data: any): void {
+    this.clocks = data.clocks;
+    this.waveTable.deserialize(data.waveTable);
+    this.psgs.forEach((psg, i) => psg.deserialize(data.psgs[i]));
+    SERIALIZE_FIELDS.forEach((key) => (this[key] as any) = data[key]);
   }
 
   read(pos: number): number {

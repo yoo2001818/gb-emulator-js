@@ -5,9 +5,9 @@ import { Memory } from "./types";
 
 export class MemoryBus implements Memory {
   cartridge: Memory;
-  mainRAM: Memory;
-  endRAM: Memory;
-  ioPorts: Memory;
+  mainRAM: RAM;
+  endRAM: RAM;
+  ioPorts: RAM;
   nullPort: Memory;
   lcd: LCD;
   timer: Memory;
@@ -30,6 +30,20 @@ export class MemoryBus implements Memory {
     this.timer = timer;
     this.gamepad = gamepad;
     this.apu = apu;
+  }
+
+  serialize(): any {
+    const output: any = {};
+    output.mainRAM = this.mainRAM.serialize();
+    output.endRAM = this.endRAM.serialize();
+    output.ioPorts = this.ioPorts.serialize();
+    return output;
+  }
+
+  deserialize(data: any): void {
+    this.mainRAM.deserialize(data.mainRAM);
+    this.endRAM.deserialize(data.endRAM);
+    this.ioPorts.deserialize(data.ioPorts);
   }
 
   getTarget(pos: number): [Memory, number] {

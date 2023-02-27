@@ -1,4 +1,5 @@
 import { CPU } from '../../cpu/cpu';
+import { deserializeBytes, serializeBytes } from '../../memory/utils';
 import { RTC } from '../rtc';
 import { MemoryBankController } from './mbc';
 
@@ -37,6 +38,26 @@ export class MBC3 implements MemoryBankController {
     } else {
       return this.ram;
     }
+  }
+
+  serialize(): any {
+    const output: any = {};
+    output.ram = this.ram != null ? serializeBytes(this.ram) : null;
+    output.rtc = this.rtc.serialize();
+    output.romBank = this.romBank;
+    output.ramBank = this.ramBank;
+    output.ramEnabled = this.ramEnabled;
+    output.ramUpdated = this.ramUpdated;
+    return output;
+  }
+
+  deserialize(data: any): void {
+    if (this.ram != null) deserializeBytes(data.ram, this.ram);
+    this.rtc.deserialize(data.rtc);
+    this.romBank = data.romBank;
+    this.ramBank = data.ramBank;
+    this.ramEnabled = data.ramEnabled;
+    this.ramUpdated = data.ramUpdated;
   }
 
   getDebugState(): string {

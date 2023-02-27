@@ -1,3 +1,4 @@
+import { deserializeBytes, serializeBytes } from '../../memory/utils';
 import { MemoryBankController } from './mbc';
 
 export class MBC5 implements MemoryBankController {
@@ -21,6 +22,24 @@ export class MBC5 implements MemoryBankController {
 
   serializeRAM(): Uint8Array | null {
     return this.ram;
+  }
+
+  serialize(): any {
+    const output: any = {};
+    output.ram = this.ram != null ? serializeBytes(this.ram) : null;
+    output.romBank = this.romBank;
+    output.ramBank = this.ramBank;
+    output.ramEnabled = this.ramEnabled;
+    output.ramUpdated = this.ramUpdated;
+    return output;
+  }
+
+  deserialize(data: any): void {
+    if (this.ram != null) deserializeBytes(data.ram, this.ram);
+    this.romBank = data.romBank;
+    this.ramBank = data.ramBank;
+    this.ramEnabled = data.ramEnabled;
+    this.ramUpdated = data.ramUpdated;
   }
 
   getDebugState(): string {

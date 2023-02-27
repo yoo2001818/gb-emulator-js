@@ -58,7 +58,7 @@ export class Interrupter {
       // Check if an interrupt should occur
       const ifReg = memory.read(IF_ADDR);
       const ieReg = memory.read(IE_ADDR);
-      let interruptReg = ieReg & ifReg & 0x03;
+      let interruptReg = ieReg & ifReg;
       if (interruptReg) {
         // Check which type is generated 
         let interruptType = 0;

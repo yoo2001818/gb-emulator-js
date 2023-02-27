@@ -39,6 +39,18 @@ export class CPU {
     this.opSizes.fill(0);
   }
 
+  serialize(): any {
+    const output: any = {};
+    output.registers = [...this.registers];
+    output.clocks = this.clocks;
+    return output;
+  }
+
+  deserialize(data: any): void {
+    this.registers = [...data.registers];
+    this.clocks = data.clocks;
+  }
+
   getDebugFlags(): string {
     let output = [];
     output.push(this.getFlag(FLAG.Z) ? 'Z' : '-');

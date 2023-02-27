@@ -39,6 +39,8 @@ async function start() {
   await emulator.load(rom);
   emulator.reboot();
   emulator.start();
+
+  let storedState: any;
   
   function update() {
     const delta = performance.now() - prevTime;
@@ -101,6 +103,17 @@ async function start() {
           a.style.display = 'none';
           a.click();
           a.remove();
+        }
+        break;
+      }
+      case '2': {
+        const data = emulator.serialize();
+        storedState = data;
+        break;
+      }
+      case '3': {
+        if (storedState != null) {
+          emulator.deserialize(storedState);
         }
         break;
       }

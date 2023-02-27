@@ -1,5 +1,13 @@
 import { PSGModule } from "./psg";
 
+const SERIALIZE_FIELDS: (keyof EnvelopePSGModule)[] = [
+  'initialVolume',
+  'currentVolume',
+  'increasing',
+  'pace',
+  'clock',
+];
+
 export class EnvelopePSGModule implements PSGModule {
   initialVolume: number = 0;
   currentVolume: number = 0;
@@ -13,6 +21,16 @@ export class EnvelopePSGModule implements PSGModule {
     this.increasing = false;
     this.pace = 0;
     this.clock = 0;
+  }
+
+  serialize(): any {
+    const output: any = {};
+    SERIALIZE_FIELDS.forEach((key) => output[key] = this[key]);
+    return output;
+  }
+
+  deserialize(data: any): void {
+    SERIALIZE_FIELDS.forEach((key) => (this[key] as any) = data[key]);
   }
 
   trigger(): void {

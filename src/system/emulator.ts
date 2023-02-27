@@ -20,6 +20,7 @@ export class Emulator {
   timer: SystemTimer;
   gamepad: GamepadController;
   apu: APU;
+  memoryBus: MemoryBus | null;
   isRunning: boolean;
   isStepping: boolean;
 
@@ -38,6 +39,7 @@ export class Emulator {
     this.timer = new SystemTimer(this.interrupter);
     this.gamepad = new GamepadController();
     this.apu = new APU();
+    this.memoryBus = null;
     this.isRunning = false;
     this.isStepping = false;
     this.sramSaveTimer = 0;
@@ -64,6 +66,7 @@ export class Emulator {
     );
     this.cpu.memory = memoryBus;
     memoryBus.cpu = this.cpu;
+    this.memoryBus = memoryBus;
     this.cpu.onTick = (elapsedClocks) => {
       for (let i = 0; i < elapsedClocks; i += 1) {
         // Run I/O
@@ -93,6 +96,26 @@ export class Emulator {
     const data = cart.mbc.serializeRAM();
     if (data == null) return;
     await writeSaveStorage(cart.info, data);
+  }
+
+  serialize(): any {
+    return {
+      mem: this.memoryBus!.serialize(),
+      cpu: this.cpu.serialize(),
+      apu: this.apu.serialize(),
+      lcd: this.lcd.serialize(),
+      timer: this.timer.serialize(),
+      cartridge: this.cartridge!.mbc.serialize(),
+    };
+  }
+
+  deserialize(data: any): void {
+    this.memoryBus!.deserialize(data.mem);
+    this.cpu.deserialize(data.cpu);
+    this.apu.deserialize(data.apu);
+    this.lcd.deserialize(data.lcd);
+    this.timer.deserialize(data.timer);
+    this.cartridge!.mbc.deserialize(data.cartridge);
   }
 
   reboot() {

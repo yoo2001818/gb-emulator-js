@@ -42,6 +42,26 @@ const LINE_CLOCK_VBLANK = 456; // V-Blank (each scanline)
 export const LCD_WIDTH = 160;
 export const LCD_HEIGHT = 144;
 
+const SERIALIZE_FIELDS: (keyof LCD)[] = [
+  'lcdc',
+  'stat',
+  'scy',
+  'scx',
+  'ly',
+  'lyc',
+  'bgp',
+  'obp0',
+  'obp1',
+  'wy',
+  'wx',
+  'lineClock',
+  'clocks',
+  'mode',
+  'runVblank',
+  'dmaSrc',
+  'dmaPos',
+];
+
 export class LCD implements Memory {
   interrupter!: Interrupter;
   lcdc: number = 0;
@@ -62,7 +82,6 @@ export class LCD implements Memory {
   runVblank: boolean = false;
   dmaSrc: number = 0;
   dmaPos: number = -1;
-  dmaClocks: number = 0;
   framebuffer!: Uint16Array;
   vram!: LockableRAM;
   oam!: LockableRAM;
@@ -70,6 +89,20 @@ export class LCD implements Memory {
   constructor(interrupter: Interrupter) {
     this.setInterrupter(interrupter);
     this.reset();
+  }
+
+  serialize(): any {
+    const output: any = {};
+    SERIALIZE_FIELDS.forEach((key) => output[key] = this[key]);
+    output.vram = this.vram.serialize();
+    output.oam = this.oam.serialize();
+    return output;
+  }
+
+  deserialize(data: any): void {
+    SERIALIZE_FIELDS.forEach((key) => (this[key] as any) = data[key]);
+    this.vram.deserialize(data.vram);
+    this.oam.deserialize(data.oam);
   }
 
   getDebugState(): string {
@@ -119,9 +152,23 @@ export class LCD implements Memory {
   write(pos: number, value: number): void {
     // pos is 0 ~ F. The memory bus would use FF40 ~ FF4F
     switch (pos) {
-      case LCD_IO.LCDC:
+      case LCD_IO.LCDC: {
+        if (!(this.lcdc & 0x80) && (value & 0x80)) {
+          // LCD restarting
+          this.ly = 0;
+          this.mode = 0;
+          this.lineClock = 0;
+          this.clocks = 0;
+        } else if ((this.lcdc & 0x80) && !(value & 0x80)) {
+          // LCD stopping
+          this.ly = 0;
+          this.mode = 0;
+          this.lineClock = 0;
+          this.clocks = 0;
+        }
         this.lcdc = value;
         return;
+      }
       case LCD_IO.STAT:
         this.stat = value;
         return;
@@ -141,7 +188,6 @@ export class LCD implements Memory {
         // Perform DMA operation
         const source = value << 8;
         this.dmaSrc = source;
-        this.dmaClocks = -4;
         this.dmaPos = 0;
         return;
       }
@@ -183,7 +229,6 @@ export class LCD implements Memory {
     this.clocks = 0;
     this.mode = 0;
     this.dmaPos = -1;
-    this.dmaClocks = 0;
     this.dmaSrc = 0;
     this.framebuffer = new Uint16Array(LCD_WIDTH * LCD_HEIGHT);
     this.vram = new LockableRAM(0x2000, () => false);
@@ -266,6 +311,10 @@ export class LCD implements Memory {
       if (this.dmaPos >= 160) {
         this.dmaPos = -1;
       }
+    }
+    if ((this.lcdc & 0x80) === 0) {
+      // LCD turned off; do nothing
+      return;
     }
     this.lineClock += 4;
     if (this.ly >= VBLANK_LY) {

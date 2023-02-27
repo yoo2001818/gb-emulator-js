@@ -2,6 +2,15 @@ import { EnvelopePSGModule } from "./envelope";
 import { LengthPSGModule } from "./length";
 import { PSG } from "./psg";
 
+const SERIALIZE_FIELDS: (keyof NoisePSG)[] = [
+  'enabled',
+  'phaseClock',
+  'clockShift',
+  'clockDivider',
+  'lfsr',
+  'lfsr7Bit',
+];
+
 export class NoisePSG implements PSG {
   output: number = 0;
   enabled: boolean = false;
@@ -33,6 +42,20 @@ export class NoisePSG implements PSG {
 
     this.envelope.reset();
     this.length.reset();
+  }
+
+  serialize(): any {
+    const output: any = {};
+    SERIALIZE_FIELDS.forEach((key) => output[key] = this[key]);
+    output.envelope = this.envelope.serialize();
+    output.length = this.length.serialize();
+    return output;
+  }
+
+  deserialize(data: any): void {
+    SERIALIZE_FIELDS.forEach((key) => (this[key] as any) = data[key]);
+    this.envelope.deserialize(data.envelope);
+    this.length.deserialize(data.length);
   }
 
   trigger(): void {

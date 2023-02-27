@@ -5,6 +5,14 @@ const DIV_TICK_RATE = 256;
 const TIMA_TICK_RATES = [1024, 16, 64, 256];
 const TIMA_TICK_BITS = [512, 8, 32, 128];
 
+const SERIALIZE_FIELDS: (keyof SystemTimer)[] = [
+  'clocks',
+  'tima',
+  'tma',
+  'tac',
+  'timaDelayed',
+];
+
 export class SystemTimer implements Memory {
   interrupter: Interrupter;
   clocks: number = 0;
@@ -25,6 +33,16 @@ export class SystemTimer implements Memory {
     this.tma = 0;
     this.tac = 0;
     this.timaDelayed = false;
+  }
+
+  serialize(): any {
+    const output: any = {};
+    SERIALIZE_FIELDS.forEach((key) => output[key] = this[key]);
+    return output;
+  }
+
+  deserialize(data: any): void {
+    SERIALIZE_FIELDS.forEach((key) => (this[key] as any) = data[key]);
   }
 
   getDebugState(): string {

@@ -1,5 +1,12 @@
 import { PSGModule } from "./psg";
 
+const SERIALIZE_FIELDS: (keyof LengthPSGModule)[] = [
+  'enabled',
+  'initialLength',
+  'currentLength',
+  'clock',
+];
+
 export interface LengthPSGConfig {
   enabled: boolean;
 }
@@ -20,6 +27,16 @@ export class LengthPSGModule implements PSGModule {
     this.initialLength = 0;
     this.currentLength = 0;
     this.clock = 0;
+  }
+
+  serialize(): any {
+    const output: any = {};
+    SERIALIZE_FIELDS.forEach((key) => output[key] = this[key]);
+    return output;
+  }
+
+  deserialize(data: any): void {
+    SERIALIZE_FIELDS.forEach((key) => (this[key] as any) = data[key]);
   }
 
   trigger(): void {

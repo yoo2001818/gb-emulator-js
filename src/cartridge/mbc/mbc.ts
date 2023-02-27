@@ -6,6 +6,9 @@ export interface MemoryBankController extends Memory {
   loadRAM(ram: Uint8Array): void;
   serializeRAM(): Uint8Array | null;
 
+  serialize(): any;
+  deserialize(data: any): void;
+
   getDebugState(): string;
   reset(): void;
 }

@@ -1,4 +1,5 @@
 import { Memory } from './types';
+import { deserializeBytes, serializeBytes } from './utils';
 
 export class RAM implements Memory {
   bytes: Uint8Array;
@@ -6,6 +7,14 @@ export class RAM implements Memory {
   constructor(size: number = 0x2000) {
     this.bytes = new Uint8Array(size);
     this.size = size;
+  }
+
+  serialize(): any {
+    return serializeBytes(this.bytes);
+  }
+
+  deserialize(data: any): void {
+    deserializeBytes(data, this.bytes);
   }
 
   read(pos: number): number {

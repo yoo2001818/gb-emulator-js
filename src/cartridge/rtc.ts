@@ -37,6 +37,22 @@ export class RTC implements Memory {
     saveRTC(this.data, output, offset);
   }
 
+  serialize(): any {
+    const output: any = {};
+    output.selectedRegister = this.selectedRegister;
+    output.data = { ...this.data };
+    output.latchedData = this.latchedData;
+    output.prevClocks = this.prevClocks;
+    return output;
+  }
+
+  deserialize(data: any): void {
+    this.selectedRegister = data.selectedRegister;
+    this.data = { ...data.data };
+    this.latchedData = data.latchedData ?? null;
+    this.prevClocks = data.prevClocks;
+  }
+
   reset(): void {
     this.prevClocks = 0;
   }

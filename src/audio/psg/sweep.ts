@@ -1,5 +1,12 @@
 import { PSGModule } from "./psg";
 
+const SERIALIZE_FIELDS: (keyof SweepPSGModule)[] = [
+  'pace',
+  'increasing',
+  'slope',
+  'clock',
+];
+
 export interface SquarePSGConfig {
   enabled: boolean;
   wavelength: number;
@@ -21,6 +28,16 @@ export class SweepPSGModule implements PSGModule {
     this.increasing = false;
     this.slope = 0;
     this.clock = 0;
+  }
+
+  serialize(): any {
+    const output: any = {};
+    SERIALIZE_FIELDS.forEach((key) => output[key] = this[key]);
+    return output;
+  }
+
+  deserialize(data: any): void {
+    SERIALIZE_FIELDS.forEach((key) => (this[key] as any) = data[key]);
   }
 
   trigger(): void {

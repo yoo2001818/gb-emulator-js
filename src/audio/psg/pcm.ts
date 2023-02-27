@@ -4,6 +4,15 @@ import { PSG } from "./psg";
 
 const OUTPUT_LEVELS = [0, 1, 0.5, 0.25];
 
+const SERIALIZE_FIELDS: (keyof PCMPSG)[] = [
+  'dacEnabled',
+  'enabled',
+  'phase',
+  'phaseClock',
+  'wavelength',
+  'outputLevel',
+];
+
 export class PCMPSG implements PSG {
   output: number = 0;
   dacEnabled: boolean = false;
@@ -35,6 +44,18 @@ export class PCMPSG implements PSG {
     this.outputLevel = 0;
 
     this.length.reset();
+  }
+
+  serialize(): any {
+    const output: any = {};
+    SERIALIZE_FIELDS.forEach((key) => output[key] = this[key]);
+    output.length = this.length.serialize();
+    return output;
+  }
+
+  deserialize(data: any): void {
+    SERIALIZE_FIELDS.forEach((key) => (this[key] as any) = data[key]);
+    this.length.deserialize(data.length);
   }
 
   trigger(): void {
