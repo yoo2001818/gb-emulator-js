@@ -1,21 +1,33 @@
 import { LockableRAM } from '../memory/lockableRAM';
 import { Memory } from '../memory/types';
+import { deserializeBytes, serializeBytes } from '../memory/utils';
 import { Interrupter, INTERRUPT_TYPE } from '../system/interrupter';
 import { renderLine } from './render';
 
 export const LCD_IO = {
-  LCDC: 0,
-  STAT: 1,
-  SCY: 2,
-  SCX: 3,
-  LY: 4,
-  LYC: 5,
-  DMA: 6,
-  BGP: 7,
-  OBP0: 8,
-  OBP1: 9,
-  WY: 0xa,
-  WX: 0xb,
+  LCDC: 0xff40,
+  STAT: 0xff41,
+  SCY: 0xff42,
+  SCX: 0xff43,
+  LY: 0xff44,
+  LYC: 0xff45,
+  DMA: 0xff46,
+  BGP: 0xff47,
+  OBP0: 0xff48,
+  OBP1: 0xff49,
+  WY: 0xff4a,
+  WX: 0xff4b,
+  VBK: 0xff4f,
+  HDMA1: 0xff51,
+  HDMA2: 0xff52,
+  HDMA3: 0xff53,
+  HDMA4: 0xff54,
+  HDMA5: 0xff55,
+  BCPS: 0xff68,
+  BCPD: 0xff69,
+  OCPS: 0xff6a,
+  OCPD: 0xff6b,
+  OPRI: 0xff6c,
 };
 
 export const LCDC = {
@@ -59,6 +71,9 @@ const SERIALIZE_FIELDS: (keyof LCD)[] = [
   'mode',
   'dmaSrc',
   'dmaPos',
+  'vramBank',
+  'bcps',
+  'ocps',
 ];
 
 export class LCD implements Memory {
@@ -84,7 +99,18 @@ export class LCD implements Memory {
   vram!: LockableRAM;
   oam!: LockableRAM;
 
-  constructor(interrupter: Interrupter) {
+  // CGB specific features
+  isCGB: boolean;
+  vramBank: number = 0;
+  bcps: number = 0;
+  ocps: number = 0;
+  bgPalette!: Uint8Array;
+  objPalette!: Uint8Array;
+  // This is hardcoded by CGB boot ROM
+  // opri: number = 0;
+
+  constructor(interrupter: Interrupter, isCGB?: boolean) {
+    this.isCGB = isCGB ?? false;
     this.setInterrupter(interrupter);
     this.reset();
   }
@@ -94,6 +120,8 @@ export class LCD implements Memory {
     SERIALIZE_FIELDS.forEach((key) => output[key] = this[key]);
     output.vram = this.vram.serialize();
     output.oam = this.oam.serialize();
+    output.bgPalette = serializeBytes(this.bgPalette);
+    output.objPalette = serializeBytes(this.objPalette);
     return output;
   }
 
@@ -101,6 +129,8 @@ export class LCD implements Memory {
     SERIALIZE_FIELDS.forEach((key) => (this[key] as any) = data[key]);
     this.vram.deserialize(data.vram);
     this.oam.deserialize(data.oam);
+    deserializeBytes(data.bgPalette, this.bgPalette);
+    deserializeBytes(data.objPalette, this.objPalette);
   }
 
   getDebugState(): string {
@@ -112,7 +142,32 @@ export class LCD implements Memory {
   }
 
   read(pos: number): number {
-    // pos is 0 ~ F. The memory bus would use FF40 ~ FF4F
+    if (this.isCGB) {
+      switch (pos) {
+        case LCD_IO.VBK:
+          return 0;
+        case LCD_IO.HDMA1:
+        case LCD_IO.HDMA2:
+        case LCD_IO.HDMA3:
+        case LCD_IO.HDMA4:
+        case LCD_IO.HDMA5:
+          return 0xff;
+        case LCD_IO.BCPS:
+          return this.bcps;
+        case LCD_IO.BCPD: {
+          const pos = this.bcps & 0x3f;
+          return this.bgPalette[pos];
+        }
+        case LCD_IO.OCPS:
+          return this.ocps;
+        case LCD_IO.OCPD: {
+          const pos = this.ocps & 0x3f;
+          return this.objPalette[pos];
+        }
+        case LCD_IO.OPRI:
+          return 0;
+      }
+    }
     switch (pos) {
       case LCD_IO.LCDC:
         return this.lcdc;
@@ -148,7 +203,44 @@ export class LCD implements Memory {
   }
 
   write(pos: number, value: number): void {
-    // pos is 0 ~ F. The memory bus would use FF40 ~ FF4F
+    if (this.isCGB) {
+      switch (pos) {
+        case LCD_IO.VBK:
+          break;
+        case LCD_IO.HDMA1:
+        case LCD_IO.HDMA2:
+        case LCD_IO.HDMA3:
+        case LCD_IO.HDMA4:
+        case LCD_IO.HDMA5:
+          break;
+        case LCD_IO.BCPS:
+          this.bcps = value & 0xbf;
+          break;
+        case LCD_IO.BCPD: {
+          const pos = this.bcps & 0x3f;
+          const autoIncrement = (this.bcps & 0x80) !== 0;
+          if (autoIncrement) {
+            this.bcps = ((this.bcps + 1) & 0x3f) | (this.bcps & 0x80);
+          }
+          this.bgPalette[pos] = value;
+          break;
+        }
+        case LCD_IO.OCPS:
+          this.ocps = value & 0xbf;
+          break;
+        case LCD_IO.OCPD: {
+          const pos = this.ocps & 0x3f;
+          const autoIncrement = (this.ocps & 0x80) !== 0;
+          if (autoIncrement) {
+            this.ocps = ((this.ocps + 1) & 0x3f) | (this.ocps & 0x80);
+          }
+          this.objPalette[pos] = value;
+          break;
+        }
+        case LCD_IO.OPRI:
+          break;
+      }
+    }
     switch (pos) {
       case LCD_IO.LCDC: {
         if (!(this.lcdc & 0x80) && (value & 0x80)) {
@@ -234,6 +326,11 @@ export class LCD implements Memory {
       if (this.dmaPos >= 0) return true;
       return false;
     });
+    this.vramBank = 0;
+    this.bcps = 0;
+    this.ocps = 0;
+    this.bgPalette = new Uint8Array(64);
+    this.objPalette = new Uint8Array(64);
   }
 
   handleLineChange(): void {
