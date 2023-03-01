@@ -4,13 +4,17 @@ import { deserializeBytes, serializeBytes } from './utils';
 export class BankedRAM implements Memory {
   bytes: Uint8Array;
   size: number;
-  offset: number;
   isLocked: () => boolean;
+  getOffset: () => number;
 
-  constructor(size: number = 0x2000, isLocked: () => boolean) {
+  constructor(
+    size: number = 0x2000,
+    isLocked: () => boolean,
+    getOffset: () => number,
+  ) {
     this.bytes = new Uint8Array(size);
     this.size = size;
-    this.offset = 0;
+    this.getOffset = getOffset;
     this.isLocked = isLocked;
   }
 
@@ -27,12 +31,12 @@ export class BankedRAM implements Memory {
     if (pos > this.size) {
       return 0xff;
     }
-    return this.bytes[(pos + this.offset) % this.size];
+    return this.bytes[(pos + this.getOffset()) % this.size];
   }
 
   write(pos: number, value: number): void {
     if (this.isLocked()) return;
-    this.bytes[(pos + this.offset) % this.size] = value;
+    this.bytes[(pos + this.getOffset()) % this.size] = value;
   }
 
   reset(): void {
