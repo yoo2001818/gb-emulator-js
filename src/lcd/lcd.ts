@@ -1,3 +1,4 @@
+import { BankedRAM } from '../memory/bankedRAM';
 import { LockableRAM } from '../memory/lockableRAM';
 import { Memory } from '../memory/types';
 import { deserializeBytes, serializeBytes } from '../memory/utils';
@@ -96,7 +97,7 @@ export class LCD implements Memory {
   dmaSrc: number = 0;
   dmaPos: number = -1;
   framebuffer!: Uint16Array;
-  vram!: LockableRAM;
+  vram!: BankedRAM;
   oam!: LockableRAM;
 
   // CGB specific features
@@ -145,7 +146,7 @@ export class LCD implements Memory {
     if (this.isCGB) {
       switch (pos) {
         case LCD_IO.VBK:
-          return 0;
+          return this.vramBank;
         case LCD_IO.HDMA1:
         case LCD_IO.HDMA2:
         case LCD_IO.HDMA3:
@@ -206,6 +207,7 @@ export class LCD implements Memory {
     if (this.isCGB) {
       switch (pos) {
         case LCD_IO.VBK:
+          this.vramBank = value & 1;
           break;
         case LCD_IO.HDMA1:
         case LCD_IO.HDMA2:
@@ -321,7 +323,7 @@ export class LCD implements Memory {
     this.dmaPos = -1;
     this.dmaSrc = 0;
     this.framebuffer = new Uint16Array(LCD_WIDTH * LCD_HEIGHT);
-    this.vram = new LockableRAM(0x2000, () => false);
+    this.vram = new BankedRAM(0x4000, () => false, () => this.vramBank * 0x2000);
     this.oam = new LockableRAM(0x100, () => {
       if (this.dmaPos >= 0) return true;
       return false;
