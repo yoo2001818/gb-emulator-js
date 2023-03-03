@@ -55,6 +55,15 @@ const LINE_CLOCK_VBLANK = 456; // V-Blank (each scanline)
 export const LCD_WIDTH = 160;
 export const LCD_HEIGHT = 144;
 
+interface HDMAState {
+  src: number;
+  dest: number; 
+  useHBlank: boolean;
+  isRunning: boolean;
+  length: number;
+  pos: number;
+}
+
 const SERIALIZE_FIELDS: (keyof LCD)[] = [
   'lcdc',
   'stat',
