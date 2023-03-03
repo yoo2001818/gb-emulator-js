@@ -149,6 +149,7 @@ export class LCD implements Memory {
       `LCDC: ${this.read(LCD_IO.LCDC).toString(16).padStart(2, '0')} STAT: ${this.read(LCD_IO.STAT).toString(16).padStart(2, '0')}`,
       `LY: ${this.read(LCD_IO.LY).toString(16).padStart(2, '0')} LYC: ${this.read(LCD_IO.LYC).toString(16).padStart(2, '0')}`,
       `LCLK: ${this.lineClock} CLK: ${this.clocks} VBK: ${this.vramBank}`,
+      `P: ${serializeBytes(this.bgPalette)}`
     ].join('\n');
   }
 
@@ -158,13 +159,13 @@ export class LCD implements Memory {
         case LCD_IO.VBK:
           return this.vramBank;
         case LCD_IO.HDMA1:
-          return this.hdma.src & 0xff;
-        case LCD_IO.HDMA2:
           return (this.hdma.src >>> 8) & 0xff;
+        case LCD_IO.HDMA2:
+          return this.hdma.src & 0xff;
         case LCD_IO.HDMA3:
-          return this.hdma.dest & 0xff;
-        case LCD_IO.HDMA4:
           return (this.hdma.dest >>> 8) & 0xff;
+        case LCD_IO.HDMA4:
+          return this.hdma.dest & 0xff;
         case LCD_IO.HDMA5: {
           const remaining = this.hdma.length - this.hdma.pos;
           if (remaining === 0) return 0xff;
@@ -229,16 +230,16 @@ export class LCD implements Memory {
           this.vramBank = value & 1;
           break;
         case LCD_IO.HDMA1:
-          this.hdma.src = (this.hdma.src & 0xff00) | value;
-          break;
-        case LCD_IO.HDMA2:
           this.hdma.src = (this.hdma.src & 0xff) | (value << 8);
           break;
+        case LCD_IO.HDMA2:
+          this.hdma.src = (this.hdma.src & 0xff00) | value;
+          break;
         case LCD_IO.HDMA3:
-          this.hdma.dest = (this.hdma.dest & 0xff00) | value;
+          this.hdma.dest = (this.hdma.dest & 0xff) | (value << 8);
           break;
         case LCD_IO.HDMA4:
-          this.hdma.dest = (this.hdma.dest & 0xff) | (value << 8);
+          this.hdma.dest = (this.hdma.dest & 0xff00) | value;
           break;
         case LCD_IO.HDMA5:
           if (!this.hdma.isRunning) {
@@ -246,6 +247,11 @@ export class LCD implements Memory {
             this.hdma.useHBlank = (value & 0x80) !== 0;
             this.hdma.pos = 0;
             this.hdma.length = ((value & 0x7f) + 1) * 0x10;
+            if (!this.hdma.useHBlank) {
+              // Hang the CPU for the necessary time
+              this.interrupter.cpu.tick(this.hdma.length / 2);
+              console.log('Stalled', this.hdma);
+            }
           } else {
             this.hdma.isRunning = false;
           }
@@ -470,13 +476,15 @@ export class LCD implements Memory {
     if (this.hdma.useHBlank && this.mode !== 0) return;
     const memory = this.interrupter.cpu.memory;
     const { src, dest, length } = this.hdma;
+    const realSrc = src & 0xfff0;
+    const realDest = (dest & 0x1ff0) + 0x8000;
     // Copy 2 bytes in one M-clock
     for (let i = 0; i < 2; i += 1) {
       const pos = this.hdma.pos;
-      const value = memory.read(src + pos);
-      memory.write(dest + pos, value);
+      const value = memory.read(realSrc + pos);
+      memory.write(realDest + pos, value);
       this.hdma.pos += 1;
-      if (pos === length) {
+      if (this.hdma.pos === length) {
         this.hdma.isRunning = false;
         this.hdma.pos = 0;
         this.hdma.length = 0;

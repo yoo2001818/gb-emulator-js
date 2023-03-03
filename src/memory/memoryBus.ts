@@ -70,8 +70,8 @@ export class MemoryBus implements Memory {
     if (pos === 0xff0f) return [this.ioPorts, pos - 0xff00];
     // ff10 ... ff40 Audio I/O
     if (pos < 0xff40) return [this.apu, pos - 0xff10];
-    // ff40 ... ff50 LCD I/O
-    if (pos < 0xff50) return [this.lcd, pos];
+    // ff40 ... ff6c LCD I/O
+    if (pos < 0xff6d) return [this.lcd, pos];
     // ff50 ... ff80 Empty 
     if (pos < 0xff80) return [this.nullPort, pos - 0xff00];
     // ff80 ... ffff Internal RAM
