@@ -116,6 +116,7 @@ export class LCD implements Memory {
   ocps: number = 0;
   bgPalette!: Uint8Array;
   objPalette!: Uint8Array;
+  hdma!: HDMAState;
   // This is hardcoded by CGB boot ROM
   // opri: number = 0;
 
@@ -147,7 +148,7 @@ export class LCD implements Memory {
     return [
       `LCDC: ${this.read(LCD_IO.LCDC).toString(16).padStart(2, '0')} STAT: ${this.read(LCD_IO.STAT).toString(16).padStart(2, '0')}`,
       `LY: ${this.read(LCD_IO.LY).toString(16).padStart(2, '0')} LYC: ${this.read(LCD_IO.LYC).toString(16).padStart(2, '0')}`,
-      `LCLK: ${this.lineClock} CLK: ${this.clocks}`
+      `LCLK: ${this.lineClock} CLK: ${this.clocks} VBK: ${this.vramBank}`,
     ].join('\n');
   }
 
@@ -157,11 +158,20 @@ export class LCD implements Memory {
         case LCD_IO.VBK:
           return this.vramBank;
         case LCD_IO.HDMA1:
+          return this.hdma.src & 0xff;
         case LCD_IO.HDMA2:
+          return (this.hdma.src >>> 8) & 0xff;
         case LCD_IO.HDMA3:
+          return this.hdma.dest & 0xff;
         case LCD_IO.HDMA4:
-        case LCD_IO.HDMA5:
-          return 0xff;
+          return (this.hdma.dest >>> 8) & 0xff;
+        case LCD_IO.HDMA5: {
+          const remaining = this.hdma.length - this.hdma.pos;
+          if (remaining === 0) return 0xff;
+          let output = (Math.floor(remaining / 0x10)) & 0x7f;
+          if (!this.hdma.isRunning) output |= 0x80;
+          return output;
+        }
         case LCD_IO.BCPS:
           return this.bcps;
         case LCD_IO.BCPD: {
@@ -219,10 +229,26 @@ export class LCD implements Memory {
           this.vramBank = value & 1;
           break;
         case LCD_IO.HDMA1:
+          this.hdma.src = (this.hdma.src & 0xff00) | value;
+          break;
         case LCD_IO.HDMA2:
+          this.hdma.src = (this.hdma.src & 0xff) | (value << 8);
+          break;
         case LCD_IO.HDMA3:
+          this.hdma.dest = (this.hdma.dest & 0xff00) | value;
+          break;
         case LCD_IO.HDMA4:
+          this.hdma.dest = (this.hdma.dest & 0xff) | (value << 8);
+          break;
         case LCD_IO.HDMA5:
+          if (!this.hdma.isRunning) {
+            this.hdma.isRunning = true;
+            this.hdma.useHBlank = (value & 0x80) !== 0;
+            this.hdma.pos = 0;
+            this.hdma.length = ((value & 0x7f) + 1) * 0x10;
+          } else {
+            this.hdma.isRunning = false;
+          }
           break;
         case LCD_IO.BCPS:
           this.bcps = value & 0xbf;
@@ -342,6 +368,14 @@ export class LCD implements Memory {
     this.ocps = 0;
     this.bgPalette = new Uint8Array(64);
     this.objPalette = new Uint8Array(64);
+    this.hdma = {
+      src: 0,
+      dest: 0,
+      useHBlank: false,
+      isRunning: false,
+      length: 0,
+      pos: 0,
+    };
   }
 
   handleLineChange(): void {
@@ -416,7 +450,7 @@ export class LCD implements Memory {
     return 17556 - this.clocks + 1;
   }
 
-  advanceClock(): void {
+  _runDMA(): void {
     // Run DMA operation
     if (this.dmaPos >= 0) {
       const pos = this.dmaPos;
@@ -427,6 +461,33 @@ export class LCD implements Memory {
         this.dmaPos = -1;
       }
     }
+  }
+
+  _runHDMA(): void {
+    if (!this.isCGB) return;
+    if (!this.hdma.isRunning) return;
+    // FIXME: Stall the CPU when we're copying HDMA data in general-purpose mode
+    if (this.hdma.useHBlank && this.mode !== 0) return;
+    const memory = this.interrupter.cpu.memory;
+    const { src, dest, length } = this.hdma;
+    // Copy 2 bytes in one M-clock
+    for (let i = 0; i < 2; i += 1) {
+      const pos = this.hdma.pos;
+      const value = memory.read(src + pos);
+      memory.write(dest + pos, value);
+      this.hdma.pos += 1;
+      if (pos === length) {
+        this.hdma.isRunning = false;
+        this.hdma.pos = 0;
+        this.hdma.length = 0;
+        break;
+      }
+    }
+  }
+
+  advanceClock(): void {
+    this._runDMA();
+    this._runHDMA();
     if ((this.lcdc & 0x80) === 0) {
       // LCD turned off; do nothing
       return;

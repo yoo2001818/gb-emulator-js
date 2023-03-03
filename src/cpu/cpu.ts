@@ -30,7 +30,9 @@ export class CPU {
   }
 
   reset(): void {
-    this.registers = [0x01, 0, 0x13, 0, 0xd8, 0xb0, 0x01, 0x4d, 0, 0, 0, 0, 0, 0xfffe];
+    // FIXME: Differentiate between CGB and GB
+    // this.registers = [0x01, 0, 0x13, 0, 0xd8, 0xb0, 0x01, 0x4d, 0, 0, 0, 0, 0, 0xfffe];
+    this.registers = [0x11, 0, 0x13, 0, 0xd8, 0xb0, 0x01, 0x4d, 0, 0, 0, 0, 0, 0xfffe];
     this.clocks = 0;
     this.isInterruptsEnabled = false;
     this.isInterruptsEnabledNext = false;

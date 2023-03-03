@@ -35,7 +35,7 @@ export class Emulator {
     this.cpu = new CPU(new RAM(1));
     this.interrupter = new Interrupter(this.cpu);
     this.cartridge = null;
-    this.lcd = new LCD(this.interrupter);
+    this.lcd = new LCD(this.interrupter, true);
     this.timer = new SystemTimer(this.interrupter);
     this.gamepad = new GamepadController();
     this.apu = new APU();
