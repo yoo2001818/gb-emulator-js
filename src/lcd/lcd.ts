@@ -106,6 +106,7 @@ export class LCD implements Memory {
   dmaSrc: number = 0;
   dmaPos: number = -1;
   framebuffer!: Uint16Array;
+  lineData!: Uint8Array;
   vram!: BankedRAM;
   oam!: LockableRAM;
 
@@ -149,7 +150,6 @@ export class LCD implements Memory {
       `LCDC: ${this.read(LCD_IO.LCDC).toString(16).padStart(2, '0')} STAT: ${this.read(LCD_IO.STAT).toString(16).padStart(2, '0')}`,
       `LY: ${this.read(LCD_IO.LY).toString(16).padStart(2, '0')} LYC: ${this.read(LCD_IO.LYC).toString(16).padStart(2, '0')}`,
       `LCLK: ${this.lineClock} CLK: ${this.clocks} VBK: ${this.vramBank}`,
-      `P: ${serializeBytes(this.bgPalette)}`
     ].join('\n');
   }
 
@@ -250,7 +250,6 @@ export class LCD implements Memory {
             if (!this.hdma.useHBlank) {
               // Hang the CPU for the necessary time
               this.interrupter.cpu.tick(this.hdma.length / 2);
-              console.log('Stalled', this.hdma);
             }
           } else {
             this.hdma.isRunning = false;
@@ -364,6 +363,7 @@ export class LCD implements Memory {
     this.dmaPos = -1;
     this.dmaSrc = 0;
     this.framebuffer = new Uint16Array(LCD_WIDTH * LCD_HEIGHT);
+    this.lineData = new Uint8Array(LCD_WIDTH);
     this.vram = new BankedRAM(0x4000, () => false, () => this.vramBank * 0x2000);
     this.oam = new LockableRAM(0x100, () => {
       if (this.dmaPos >= 0) return true;

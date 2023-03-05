@@ -75,6 +75,7 @@ export class Emulator {
         this.apu.advanceClock();
       }
     };
+    this.lcd.isCGB = cart.info.supportsCGB;
     this.reboot();
   }
 

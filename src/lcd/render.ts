@@ -43,9 +43,13 @@ function getOBJPaletteColor(lcd: LCD, paletteId: number, colorId: number): numbe
 }
 
 function renderLineBG(lcd: LCD, line: number): void {
-  if ((lcd.lcdc & LCDC.BG_WINDOW_DISPLAY) === 0) return;
-
   const isCGB = lcd.isCGB;
+  const lcdcPriority = (lcd.lcdc & LCDC.BG_WINDOW_DISPLAY) === 0;
+  // GB: If BG_WINDOW_DISPLAY is 0, don't render BG and window
+  if (!isCGB && lcdcPriority) {
+    // FIXME: Clear priority data
+    return;
+  }
   const vram = lcd.vram.bytes;
   const drawY = line + lcd.scy;
   const tileY = (drawY / 8) & 0x1f;
@@ -80,9 +84,13 @@ function renderLineBG(lcd: LCD, line: number): void {
       if (isCGB) {
         const color = getBGPaletteColor(lcd, tilePalette, colorId);
         lcd.framebuffer[fbAddr + currentX] = color;
+        lcd.lineData[currentX] =
+          (tilePriority ? 2 : 0) |
+          (colorId > 0 ? 1 : 0);
       } else {
         const color = (lcd.bgp >> (colorId << 1)) & 0x03;
         lcd.framebuffer[fbAddr + currentX] = color | 0x8000;
+        lcd.lineData[currentX] = colorId > 0 ? 1 : 0;
       }
       px -= 1;
       currentX += 1;
@@ -91,10 +99,12 @@ function renderLineBG(lcd: LCD, line: number): void {
 }
 
 function renderLineWindow(lcd: LCD, line: number): void {
-  if ((lcd.lcdc & LCDC.BG_WINDOW_DISPLAY) === 0) return;
+  const isCGB = lcd.isCGB;
+  if (!isCGB && (lcd.lcdc & LCDC.BG_WINDOW_DISPLAY) === 0) {
+    return;
+  }
   if ((lcd.lcdc & LCDC.WINDOW_DISPLAY) === 0) return;
 
-  const isCGB = lcd.isCGB;
   const vram = lcd.vram.bytes;
   const drawY = line - lcd.wy;
   if (drawY < 0) return;
@@ -130,9 +140,13 @@ function renderLineWindow(lcd: LCD, line: number): void {
       if (isCGB) {
         const color = getBGPaletteColor(lcd, tilePalette, colorId);
         lcd.framebuffer[fbAddr + currentX] = color;
+        lcd.lineData[currentX] =
+          (tilePriority ? 2 : 0) |
+          (colorId > 0 ? 1 : 0);
       } else {
         const color = (lcd.bgp >> (colorId << 1)) & 0x03;
         lcd.framebuffer[fbAddr + currentX] = color | 0x8000;
+        lcd.lineData[currentX] = colorId > 0 ? 1 : 0;
       }
       px -= 1;
       currentX += 1;
@@ -149,6 +163,7 @@ const ATTRIBUTE = {
 
 export function renderLineSprite(lcd: LCD, line: number): void {
   if ((lcd.lcdc & LCDC.OBJ_DISPLAY) === 0) return;
+  const lcdcPriority = (lcd.lcdc & LCDC.BG_WINDOW_DISPLAY) !== 0;
   const isCGB = lcd.isCGB;
   // Read OAM
   const oam = lcd.oam.bytes;
@@ -166,7 +181,7 @@ export function renderLineSprite(lcd: LCD, line: number): void {
     const obp = (attributes & ATTRIBUTE.PALETTE) ? lcd.obp1 : lcd.obp0;
     const flipX = (attributes & ATTRIBUTE.X_FLIP) !== 0;
     const flipY = (attributes & ATTRIBUTE.Y_FLIP) !== 0;
-    const bgWindowOverObj = (attributes & ATTRIBUTE.BG_WINDOW_OVER_OBJ) !== 0;
+    const objPriority = (attributes & ATTRIBUTE.BG_WINDOW_OVER_OBJ) !== 0;
     const palette = attributes & 0x7;
     const tileBank = (attributes >>> 3) & 1;
 
@@ -183,14 +198,21 @@ export function renderLineSprite(lcd: LCD, line: number): void {
       if (currentX < 0 || currentX >= LCD_WIDTH) continue;
       const colorId = ((tileLine1 >> px) & 1) | (((tileLine2 >> px) & 1) << 1);
       if (colorId === 0) continue;
-      if (bgWindowOverObj) {
-        const currentColor = lcd.framebuffer[fbAddr + currentX];
-        if (currentColor !== 0) continue;
-      }
+      const prevData = lcd.lineData[currentX];
+      const bgColor = (prevData & 1) !== 0;
+      const bgPriority = (prevData & 2) !== 0;
       if (isCGB) {
+        if (
+          bgColor &&
+          lcdcPriority &&
+          (objPriority || bgPriority)
+        ) {
+          continue;
+        }
         const color = getOBJPaletteColor(lcd, palette, colorId);
         lcd.framebuffer[fbAddr + currentX] = color;
       } else {
+        if (bgColor && objPriority) continue;
         const color = (obp >> (colorId << 1)) & 0x03;
         lcd.framebuffer[fbAddr + currentX] = color | 0x8000;
       }
