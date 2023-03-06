@@ -21,13 +21,13 @@ function getBGTileDataAddress(lcd: LCD, id: number): number {
 function getBGTileId(lcd: LCD, x: number, y: number): number {
   // Again, this is directly read from VRAM.
   const bgMapBase = (lcd.lcdc & LCDC.BG_TILE_MAP_DISPLAY_SELECT) ? 0x1c00 : 0x1800;
-  return lcd.vram.read(bgMapBase + (32 * y) + x);
+  return lcd.vram.bytes[bgMapBase + (32 * y) + x];
 }
 
 function getWindowTileId(lcd: LCD, x: number, y: number): number {
   // Again, this is directly read from VRAM.
   const bgMapBase = (lcd.lcdc & LCDC.WINDOW_TILE_MAP_DISPLAY_SELECT) ? 0x1c00 : 0x1800;
-  return lcd.vram.read(bgMapBase + (32 * y) + x);
+  return lcd.vram.bytes[bgMapBase + (32 * y) + x];
 }
 
 function drawTilemap(lcd: LCD, bitmap: Uint8ClampedArray): void {

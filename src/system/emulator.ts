@@ -124,7 +124,7 @@ export class Emulator {
     this.timer.reset();
     this.gamepad.reset();
     this.apu.reset();
-    this.cpu.reset();
+    this.cpu.reset(this.lcd.isCGB);
     // Assume that we have continued through the bootloader
     this.cpu.jump(0x100);
     this.cpu.isRunning = true;

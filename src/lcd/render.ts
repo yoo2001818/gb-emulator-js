@@ -14,22 +14,22 @@ function getBGTileDataAddress(lcd: LCD, id: number, bank: number = 0): number {
 function getBGTileId(lcd: LCD, x: number, y: number): number {
   // Again, this is directly read from VRAM.
   const bgMapBase = (lcd.lcdc & LCDC.BG_TILE_MAP_DISPLAY_SELECT) ? 0x1c00 : 0x1800;
-  return lcd.vram.read(bgMapBase + (32 * y) + x);
+  return lcd.vram.bytes[bgMapBase + (32 * y) + x];
 }
 
 function getBGTileAttributes(lcd: LCD, x: number, y: number): number {
   const bgMapBase = (lcd.lcdc & LCDC.BG_TILE_MAP_DISPLAY_SELECT) ? 0x3c00 : 0x3800;
-  return lcd.vram.read(bgMapBase + (32 * y) + x);
+  return lcd.vram.bytes[bgMapBase + (32 * y) + x];
 }
 
 function getWindowTileId(lcd: LCD, x: number, y: number): number {
   const bgMapBase = (lcd.lcdc & LCDC.WINDOW_TILE_MAP_DISPLAY_SELECT) ? 0x1c00 : 0x1800;
-  return lcd.vram.read(bgMapBase + (32 * y) + x);
+  return lcd.vram.bytes[bgMapBase + (32 * y) + x];
 }
 
 function getWindowTileAttributes(lcd: LCD, x: number, y: number): number {
   const bgMapBase = (lcd.lcdc & LCDC.WINDOW_TILE_MAP_DISPLAY_SELECT) ? 0x3c00 : 0x3800;
-  return lcd.vram.read(bgMapBase + (32 * y) + x);
+  return lcd.vram.bytes[bgMapBase + (32 * y) + x];
 }
 
 function getBGPaletteColor(lcd: LCD, paletteId: number, colorId: number): number {

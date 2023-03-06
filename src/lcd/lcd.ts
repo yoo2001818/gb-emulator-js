@@ -157,7 +157,7 @@ export class LCD implements Memory {
     if (this.isCGB) {
       switch (pos) {
         case LCD_IO.VBK:
-          return this.vramBank;
+          return 0xfe | this.vramBank;
         case LCD_IO.HDMA1:
           return (this.hdma.src >>> 8) & 0xff;
         case LCD_IO.HDMA2:
