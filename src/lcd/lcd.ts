@@ -287,16 +287,8 @@ export class LCD implements Memory {
       case LCD_IO.LCDC: {
         if (!(this.lcdc & 0x80) && (value & 0x80)) {
           // LCD restarting
-          this.ly = 0;
-          this.mode = 0;
-          this.lineClock = 0;
-          this.clocks = 0;
         } else if ((this.lcdc & 0x80) && !(value & 0x80)) {
           // LCD stopping
-          this.ly = 0;
-          this.mode = 0;
-          this.lineClock = 0;
-          this.clocks = 0;
         }
         this.lcdc = value;
         return;
