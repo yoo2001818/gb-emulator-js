@@ -1,5 +1,6 @@
 import { RAM } from "../memory/ram";
 import { Memory } from "../memory/types";
+import { BaseSystem } from "../system/baseSystem";
 import { NoisePSG } from "./psg/noise";
 import { PCMPSG } from "./psg/pcm";
 import { PSG } from "./psg/psg";
@@ -80,6 +81,16 @@ export class APU implements Memory {
     this.nr50 = 0;
     this.nr51 = 0;
     this.nr52 = 0;
+  }
+
+  register(system: BaseSystem): void {
+    const { ioBus } = system;
+    for (let i = 0; i < 0x30; i += 1) {
+      ioBus.register(0x10 + i, 'APU', {
+        read: () => this.read(i),
+        write: (_, value) => this.write(i, value),
+      });
+    }
   }
   
   serialize(): any {

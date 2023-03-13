@@ -1,34 +1,39 @@
 import { Memory } from '../memory/types';
 
-interface IOPort {
-  read(): number;
-  write(value: number): number;
-}
+const EMPTY_PORT: Memory = {
+  read: () => 0xff,
+  write: () => {},
+};
 
 export class IOBus implements Memory {
-  ports: (IOPort | null)[];
+  ports: Memory[];
+  names: (string | null)[];
 
   constructor() {
-    this.ports = Array.from({ length: 256 }, () => null);
+    this.ports = [];
+    this.names = [];
+    this.reset();
   }
 
-  reset() {
-    this.ports = Array.from({ length: 256 }, () => null);
+  reset(): void {
+    this.ports = Array.from({ length: 256 }, () => EMPTY_PORT);
+    this.names = Array.from({ length: 256 }, () => null);
   }
 
-  registerPort(pos: number, port: IOPort): void {
+  register(pos: number, name: string, port: Memory): void {
     this.ports[pos] = port;
+    this.names[pos] = name;
   }
 
   read(pos: number): number {
     const port = this.ports[pos];
     if (port == null) return 0xff;
-    return port.read();
+    return port.read(pos);
   }
 
   write(pos: number, value: number): void {
     const port = this.ports[pos];
     if (port == null) return;
-    port.write(value);
+    port.write(pos, value);
   }
 }

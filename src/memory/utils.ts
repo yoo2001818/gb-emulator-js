@@ -1,3 +1,5 @@
+import { Memory } from "./types";
+
 export function serializeBytes(bytes: Uint8Array): string {
   const hexData = [];
   for (let i = 0; i < bytes.length; i += 1) {
@@ -19,3 +21,11 @@ export function deserializeBytes(data: string, bytes: Uint8Array): void {
   }
 }
 
+export function createAccessor<T, K extends keyof T>(object: T, key: K): Memory {
+  return {
+    read: () => object[key] as number,
+    write: (_, value) => {
+      (object[key] as number) = value;
+    },
+  };
+}

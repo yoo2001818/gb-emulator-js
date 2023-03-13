@@ -1,4 +1,5 @@
 import { Memory } from "../memory/types";
+import { BaseSystem } from "./baseSystem";
 import { Interrupter, INTERRUPT_TYPE } from "./interrupter";
 
 const DIV_TICK_RATE = 256;
@@ -33,6 +34,49 @@ export class SystemTimer implements Memory {
     this.tma = 0;
     this.tac = 0;
     this.timaDelayed = false;
+  }
+
+  register(system: BaseSystem): void {
+    const { ioBus } = system;
+    ioBus.register(0x04, 'DIV', {
+      read: () => (this.clocks / DIV_TICK_RATE) & 0xff,
+      write: () => {
+        this.clocks = 0;
+        // Update the clock immediately
+        if (this.tac & 0x4) {
+          const oldBit = this.clocks & TIMA_TICK_BITS[this.tac & 0x3];
+          if (oldBit) {
+            this.tima += 1;
+            this._postUpdateTIMA();
+          }
+        }
+      },
+    });
+    ioBus.register(0x05, 'TIMA', {
+      read: () => this.tima & 0xff,
+      write: (_, value) => this.tima = value,
+    });
+    ioBus.register(0x06, 'TMA', {
+      read: () => this.tma,
+      write: (_, value) => this.tma = value,
+    });
+    ioBus.register(0x07, 'TAC', {
+      read: () => this.tac,
+      write: (_, value) => {
+        const oldTAC = this.tac;
+        this.tac = value;
+        // Update the clock immediately
+        // DMG bug - TAC increments even if enabled flag becomes false
+        if (oldTAC & 0x4) {
+          const oldBit = this.clocks & TIMA_TICK_BITS[oldTAC & 0x3];
+          const newBit = this.clocks & TIMA_TICK_BITS[value & 0x3];
+          if (!newBit && oldBit) {
+            this.tima += 1;
+            this._postUpdateTIMA();
+          }
+        }
+      },
+    });
   }
 
   serialize(): any {

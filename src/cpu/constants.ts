@@ -7,12 +7,8 @@ export const REGISTER = {
   F: 5,
   H: 6,
   L: 7,
-  I: 8,
-  R: 9,
-  IX: 10,
-  IY: 11,
-  PC: 12,
-  SP: 13,
+  PC: 8,
+  SP: 9,
 };
 
 export const FLAG = {

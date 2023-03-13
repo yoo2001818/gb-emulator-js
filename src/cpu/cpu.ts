@@ -4,7 +4,7 @@ import { CPULog } from './log';
 import { main_opcodes } from './ops/opcode';
 
 export class CPU {
-  registers: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  registers: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   clocks: number = 0;
   memory: Memory;
   onTick: (clocks: number) => void;
@@ -29,11 +29,11 @@ export class CPU {
     this.onTick = () => {};
   }
 
-  reset(isCGB: boolean): void {
+  reset(isCGB?: boolean): void {
     if (isCGB) {
-      this.registers = [0x11, 0, 0x13, 0, 0xd8, 0xb0, 0x01, 0x4d, 0, 0, 0, 0, 0, 0xfffe];
+      this.registers = [0x11, 0, 0x13, 0, 0xd8, 0xb0, 0x01, 0x4d, 0, 0xfffe];
     } else {
-      this.registers = [0x01, 0, 0x13, 0, 0xd8, 0xb0, 0x01, 0x4d, 0, 0, 0, 0, 0, 0xfffe];
+      this.registers = [0x01, 0, 0x13, 0, 0xd8, 0xb0, 0x01, 0x4d, 0, 0xfffe];
     }
     this.clocks = 0;
     this.isInterruptsEnabled = false;

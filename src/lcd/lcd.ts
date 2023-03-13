@@ -1,7 +1,8 @@
 import { BankedRAM } from '../memory/bankedRAM';
 import { LockableRAM } from '../memory/lockableRAM';
 import { Memory } from '../memory/types';
-import { deserializeBytes, serializeBytes } from '../memory/utils';
+import { createAccessor, deserializeBytes, serializeBytes } from '../memory/utils';
+import { BaseSystem } from '../system/baseSystem';
 import { Interrupter, INTERRUPT_TYPE } from '../system/interrupter';
 import { renderLine } from './render';
 
@@ -335,6 +336,70 @@ export class LCD implements Memory {
 
   setInterrupter(interrupter: Interrupter): void {
     this.interrupter = interrupter;
+  }
+
+  register(system: BaseSystem): void {
+    const { ioBus, memoryBus } = system;
+    // VRAM and OAM
+    memoryBus.register(0x80, 0x9f, this.vram);
+    memoryBus.register(0xfe, 0xfe, this.oam);
+    // GB registers
+    ioBus.register(0x40, 'LCDC', createAccessor(this, 'lcdc'));
+    ioBus.register(0x41, 'STAT', {
+      read: () => {
+        let bits = (this.stat & 0xf8);
+        bits |= this.mode;
+        if (this.ly === this.lyc) bits |= 4;
+        return bits;
+      },
+      write: (_, value) => {
+        this.stat = value;
+      },
+    });
+    ioBus.register(0x42, 'SCY', createAccessor(this, 'scy'));
+    ioBus.register(0x43, 'SCX', createAccessor(this, 'scx'));
+    ioBus.register(0x44, 'LY', createAccessor(this, 'ly'));
+    ioBus.register(0x45, 'LYC', createAccessor(this, 'lyc'));
+    ioBus.register(0x47, 'BGP', createAccessor(this, 'bgp'));
+    ioBus.register(0x48, 'OBP0', createAccessor(this, 'obp0'));
+    ioBus.register(0x49, 'OBP1', createAccessor(this, 'obp1'));
+    ioBus.register(0x4a, 'WY', createAccessor(this, 'wy'));
+    ioBus.register(0x4b, 'WX', createAccessor(this, 'wx'));
+    // GBC registers
+    ioBus.register(0x4f, 'VBK', {
+      read: () => 0xfe | this.vramBank,
+      write: (_, value) => { this.vramBank = value & 1; },
+    });
+    ioBus.register(0x68, 'BCPS', createAccessor(this, 'bcps'));
+    ioBus.register(0x69, 'BCPD', {
+      read: () => {
+        const pos = this.bcps & 0x3f;
+        return this.bgPalette[pos];
+      },
+      write: (_, value) => {
+        const pos = this.bcps & 0x3f;
+        const autoIncrement = (this.bcps & 0x80) !== 0;
+        if (autoIncrement) {
+          this.bcps = ((this.bcps + 1) & 0x3f) | (this.bcps & 0x80);
+        }
+        this.bgPalette[pos] = value;
+      },
+    });
+    ioBus.register(0x6a, 'OCPS', createAccessor(this, 'ocps'));
+    ioBus.register(0x6b, 'OCPD', {
+      read: () => {
+        const pos = this.ocps & 0x3f;
+        return this.objPalette[pos];
+      },
+      write: (_, value) => {
+        const pos = this.ocps & 0x3f;
+        const autoIncrement = (this.ocps & 0x80) !== 0;
+        if (autoIncrement) {
+          this.ocps = ((this.ocps + 1) & 0x3f) | (this.ocps & 0x80);
+        }
+        this.objPalette[pos] = value;
+      },
+    });
   }
 
   reset() {
