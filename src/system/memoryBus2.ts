@@ -22,10 +22,10 @@ export class MemoryBus2 implements Memory {
     this.offsets = Array.from({ length: 256 }, () => 0);
   }
 
-  register(from: number, to: number, port: Memory): void {
+  register(from: number, to: number, port: Memory, offset?: number): void {
     for (let i = from; i <= to; i += 1) {
       this.ports[i] = port;
-      this.offsets[i] = from << 8;
+      this.offsets[i] = offset ?? (from << 8);
     }
   }
 

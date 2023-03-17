@@ -17,7 +17,8 @@ export class Cartridge {
   }
 
   register(system: BaseSystem): void {
-    system.memoryBus.register(0x00, 0xbf, this.mbc);
+    system.memoryBus.register(0x00, 0x7f, this.mbc);
+    system.memoryBus.register(0xa0, 0xbf, this.mbc, 0);
   }
 
   reset(): void {

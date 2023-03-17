@@ -63,8 +63,8 @@ export class BaseEmulator {
       this.cartridge.reset();
     }
     
-    this.system.memoryBus.register(0xc0, 0xcf, this.wram);
-    this.system.memoryBus.register(0xe0, 0xef, this.wram);
+    this.system.memoryBus.register(0xc0, 0xdf, this.wram);
+    this.system.memoryBus.register(0xe0, 0xfd, this.wram);
     this.ppu.register(this.system);
     this.apu.register(this.system);
     this.timer.register(this.system);
@@ -74,12 +74,16 @@ export class BaseEmulator {
       this.cartridge.register(this.system);
     }
 
-    this.system.cpu.onTick = this.advanceClock.bind(this);
+    this.system.cpu.onTick = this.advanceClocks.bind(this);
+    console.log(this.system.ioBus);
+    console.log(this.system.memoryBus);
   }
 
-  advanceClock(): void {
-    this.ppu.advanceClock();
-    this.apu.advanceClock();
-    this.timer.advanceClock();
+  advanceClocks(ticks: number): void {
+    for (let i = 0; i < ticks; i += 1) {
+      this.ppu.advanceClock();
+      this.apu.advanceClock();
+      this.timer.advanceClock();
+    }
   }
 }

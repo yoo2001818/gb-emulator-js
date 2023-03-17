@@ -365,6 +365,16 @@ export class LCD implements Memory {
     ioBus.register(0x49, 'OBP1', createAccessor(this, 'obp1'));
     ioBus.register(0x4a, 'WY', createAccessor(this, 'wy'));
     ioBus.register(0x4b, 'WX', createAccessor(this, 'wx'));
+    // TODO: Move it out of way
+    ioBus.register(0x46, 'DMA', {
+      read: () => 0xff,
+      write: (_, value) => {
+        // Perform DMA operation
+        const source = value << 8;
+        this.dmaSrc = source;
+        this.dmaPos = 0;
+      },
+    });
     // GBC registers
     ioBus.register(0x4f, 'VBK', {
       read: () => 0xfe | this.vramBank,
@@ -398,6 +408,54 @@ export class LCD implements Memory {
           this.ocps = ((this.ocps + 1) & 0x3f) | (this.ocps & 0x80);
         }
         this.objPalette[pos] = value;
+      },
+    });
+    // TODO: Move it out of way
+    ioBus.register(0x51, 'HDMA1', {
+      read: () => (this.hdma.src >>> 8) & 0xff,
+      write: (_, value) => {
+        this.hdma.src = (this.hdma.src & 0xff) | (value << 8);
+      },
+    });
+    ioBus.register(0x52, 'HDMA2', {
+      read: () => this.hdma.src & 0xff,
+      write: (_, value) => {
+        this.hdma.src = (this.hdma.src & 0xff00) | value;
+      },
+    });
+    ioBus.register(0x53, 'HDMA3', {
+      read: () => (this.hdma.dest >>> 8) & 0xff,
+      write: (_, value) => {
+        this.hdma.dest = (this.hdma.dest & 0xff) | (value << 8);
+      },
+    });
+    ioBus.register(0x54, 'HDMA4', {
+      read: () => this.hdma.dest & 0xff,
+      write: (_, value) => {
+        this.hdma.dest = (this.hdma.dest & 0xff00) | value;
+      },
+    });
+    ioBus.register(0x55, 'HDMA5', {
+      read: () => {
+        const remaining = this.hdma.length - this.hdma.pos;
+        if (remaining === 0) return 0xff;
+        let output = (Math.floor(remaining / 0x10)) & 0x7f;
+        if (!this.hdma.isRunning) output |= 0x80;
+        return output;
+      },
+      write: (_, value) => {
+        if (!this.hdma.isRunning) {
+          this.hdma.isRunning = true;
+          this.hdma.useHBlank = (value & 0x80) !== 0;
+          this.hdma.pos = 0;
+          this.hdma.length = ((value & 0x7f) + 1) * 0x10;
+          if (!this.hdma.useHBlank) {
+            // Hang the CPU for the necessary time
+            this.interrupter.cpu.tick(this.hdma.length / 2);
+          }
+        } else {
+          this.hdma.isRunning = false;
+        }
       },
     });
   }
