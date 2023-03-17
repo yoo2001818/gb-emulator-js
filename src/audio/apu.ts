@@ -85,12 +85,7 @@ export class APU implements Memory {
 
   register(system: BaseSystem): void {
     const { ioBus } = system;
-    for (let i = 0; i < 0x30; i += 1) {
-      ioBus.register(0x10 + i, 'APU', {
-        read: () => this.read(i),
-        write: (_, value) => this.write(i, value),
-      });
-    }
+    ioBus.registerMemory(0x10, 0x30, 'APU', this);
   }
   
   serialize(): any {

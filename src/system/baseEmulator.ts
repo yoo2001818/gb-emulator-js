@@ -12,7 +12,7 @@ export class BaseEmulator {
   timer: SystemTimer;
   gamepad: GamepadController;
   wram: RAM;
-  hiram: RAM;
+  hram: RAM;
 
   constructor() {
     this.system = new BaseSystem();
@@ -21,13 +21,13 @@ export class BaseEmulator {
     this.timer = new SystemTimer(this.system.interrupter);
     this.gamepad = new GamepadController();
     this.wram = new RAM(0x2000);
-    this.hiram = new RAM(0x80);
+    this.hram = new RAM(0x80);
   }
 
   reset(): void {
     this.system.reset();
     this.wram.reset();
-    this.hiram.reset();
+    this.hram.reset();
     this.ppu.reset();
     this.apu.reset();
     this.timer.reset();
@@ -39,12 +39,6 @@ export class BaseEmulator {
     this.apu.register(this.system);
     this.timer.register(this.system);
     this.gamepad.register(this.system);
-    // WHY
-    for (let i = 0x80; i < 0xff; i += 1) {
-      this.system.ioBus.register(i, 'HIRAM', {
-        read: () => this.hiram.read(i - 0x80),
-        write: (_, value) => this.hiram.write(i - 0x80, value),
-      });
-    }
+    this.system.ioBus.registerMemory(0x80, 0x80, 'HRAM', this.hram);
   }
 }
