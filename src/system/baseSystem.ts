@@ -19,9 +19,12 @@ export class BaseSystem {
   }
 
   reset(): void {
+    this.cpu.reset(true);
     this.memoryBus.reset();
     this.ioBus.reset();
-    // TODO: Interrupter
+    this.interrupter.reset();
+
     this.memoryBus.register(0xff, 0xff, this.ioBus);
+    this.interrupter.register(this);
   }
 }

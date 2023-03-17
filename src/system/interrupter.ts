@@ -1,6 +1,7 @@
 import { REGISTER } from '../cpu/constants';
 import { CPU } from '../cpu/cpu';
 import { getHex16 } from '../cpu/ops/utils';
+import { BaseSystem } from './baseSystem';
 
 export const INTERRUPT_TYPE = {
   VBLANK: 0,
@@ -23,9 +24,39 @@ const IF_ADDR = 0xFF0F;
 
 export class Interrupter {
   cpu: CPU;
+  interruptsEnable: number;
+  interruptsFlag: number;
 
   constructor(cpu: CPU) {
     this.cpu = cpu;
+    this.interruptsEnable = 0;
+    this.interruptsFlag = 0;
+  }
+
+  reset(): void {
+    this.interruptsEnable = 0;
+    this.interruptsFlag = 0;
+  }
+
+  serialize(): any {
+    return { ie: this.interruptsEnable, if: this.interruptsFlag };
+  }
+
+  deserialize(value: any): void {
+    this.interruptsEnable = value.ie;
+    this.interruptsFlag = value.if;
+  }
+
+  register(system: BaseSystem): void {
+    const { ioBus } = system;
+    ioBus.register(0x0f, 'IF', {
+      read: () => this.interruptsFlag,
+      write: (_, value) => { this.interruptsFlag = value; },
+    });
+    ioBus.register(0xff, 'IE', {
+      read: () => this.interruptsEnable,
+      write: (_, value) => { this.interruptsEnable = value; },
+    });
   }
 
   queueInterrupt(type: number): void {

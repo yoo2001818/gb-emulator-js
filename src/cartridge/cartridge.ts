@@ -1,4 +1,5 @@
 import { CPU } from "../cpu/cpu";
+import { BaseSystem } from "../system/baseSystem";
 import { CartridgeInfo, readCartridgeInfo } from "./info";
 import { MemoryBankController } from "./mbc/mbc";
 import { MBC1 } from "./mbc/mbc1";
@@ -6,9 +7,22 @@ import { MBC3 } from "./mbc/mbc3";
 import { MBC5 } from "./mbc/mbc5";
 import { MBCType } from "./mbcType";
 
-export interface Cartridge {
+export class Cartridge {
   info: CartridgeInfo;
   mbc: MemoryBankController;
+
+  constructor(info: CartridgeInfo, mbc: MemoryBankController) {
+    this.info = info;
+    this.mbc = mbc;
+  }
+
+  register(system: BaseSystem): void {
+    system.memoryBus.register(0x00, 0xbf, this.mbc);
+  }
+
+  reset(): void {
+    this.mbc.reset();
+  }
 }
 
 function createSRAM(size: number): Uint8Array | null {
@@ -22,13 +36,13 @@ export async function loadCartridge(cpu: CPU, rom: Uint8Array): Promise<Cartridg
   // Note that we don't perform any I/O here
   switch (info.cartridgeType.mbcType) {
     case MBCType.ROM:
-      return { info, mbc: new MBC3(rom, ram, cpu, info.cartridgeType.hasTimer) };
+      return new Cartridge(info, new MBC3(rom, ram, cpu, info.cartridgeType.hasTimer));
     case MBCType.MBC1:
-      return { info, mbc: new MBC1(rom, ram) };
+      return new Cartridge(info, new MBC1(rom, ram));
     case MBCType.MBC3:
-      return { info, mbc: new MBC3(rom, ram, cpu, info.cartridgeType.hasTimer) };
+      return new Cartridge(info, new MBC3(rom, ram, cpu, info.cartridgeType.hasTimer));
     case MBCType.MBC5:
-      return { info, mbc: new MBC5(rom, ram) };
+      return new Cartridge(info, new MBC5(rom, ram));
     default:
       console.log(info);
       throw new Error('This cartridge is not supported yet');

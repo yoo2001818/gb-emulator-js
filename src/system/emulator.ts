@@ -1,26 +1,12 @@
-import { APU } from '../audio/apu';
 import { REGISTER } from '../cpu/constants';
-import { CPU } from '../cpu/cpu';
-import { LCD } from '../lcd/lcd';
-import { MemoryBus } from '../memory/memoryBus';
-import { RAM } from '../memory/ram';
 import { drawCanvas } from './canvas';
-import { GamepadController } from './gamepad';
-import { Interrupter } from './interrupter';
-import { SystemTimer } from './timer';
-import { Cartridge, loadCartridge } from '../cartridge/cartridge';
+import { loadCartridge } from '../cartridge/cartridge';
 import { readSaveStorage, writeSaveStorage } from '../storage/saveStorage';
 import { getHex16 } from '../cpu/ops/utils';
+import { BaseEmulator } from './baseEmulator';
 
 export class Emulator {
-  cpu: CPU;
-  interrupter: Interrupter;
-  cartridge: Cartridge | null;
-  lcd: LCD;
-  timer: SystemTimer;
-  gamepad: GamepadController;
-  apu: APU;
-  memoryBus: MemoryBus | null;
+  emulator: BaseEmulator;
   isRunning: boolean;
   isStepping: boolean;
 
@@ -32,14 +18,7 @@ export class Emulator {
   debugTextElem: HTMLDivElement;
 
   constructor(canvas: HTMLCanvasElement) {
-    this.cpu = new CPU(new RAM(1));
-    this.interrupter = new Interrupter(this.cpu);
-    this.cartridge = null;
-    this.lcd = new LCD(this.interrupter, true);
-    this.timer = new SystemTimer(this.interrupter);
-    this.gamepad = new GamepadController();
-    this.apu = new APU();
-    this.memoryBus = null;
+    this.emulator = new BaseEmulator();
     this.isRunning = false;
     this.isStepping = false;
     this.sramSaveTimer = 0;
@@ -51,48 +30,30 @@ export class Emulator {
   }
 
   async load(rom: Uint8Array) {
-    const cart = await loadCartridge(this.cpu, rom);
+    const cart = await loadCartridge(this.emulator.system.cpu, rom);
     const saveData = await readSaveStorage(cart.info);
     if (saveData != null) {
       cart.mbc.loadRAM(saveData);
     }
-    this.cartridge = cart;
-    const memoryBus = new MemoryBus(
-      cart.mbc,
-      this.lcd,
-      this.timer,
-      this.gamepad,
-      this.apu,
-    );
-    this.cpu.memory = memoryBus;
-    memoryBus.cpu = this.cpu;
-    this.memoryBus = memoryBus;
-    this.cpu.onTick = (elapsedClocks) => {
-      for (let i = 0; i < elapsedClocks; i += 1) {
-        // Run I/O
-        this.lcd.advanceClock();
-        this.timer.advanceClock();
-        this.apu.advanceClock();
-      }
-    };
-    this.lcd.isCGB = cart.info.supportsCGB;
+    this.emulator.cartridge = cart;
+    this.emulator.ppu.isCGB = cart.info.supportsCGB;
     this.reboot();
   }
 
   loadSRAMFromFile(ram: Uint8Array): void {
-    const cart = this.cartridge;
+    const cart = this.emulator.cartridge;
     if (cart == null) return;
     cart.mbc.loadRAM(ram);
   }
 
   getSRAM(): Uint8Array | null {
-    const cart = this.cartridge;
+    const cart = this.emulator.cartridge;
     if (cart == null) return null;
     return cart.mbc.serializeRAM();
   }
 
   async saveSRAM(): Promise<void> {
-    const cart = this.cartridge;
+    const cart = this.emulator.cartridge;
     if (cart == null) return;
     const data = cart.mbc.serializeRAM();
     if (data == null) return;
@@ -100,34 +61,18 @@ export class Emulator {
   }
 
   serialize(): any {
-    return {
-      mem: this.memoryBus!.serialize(),
-      cpu: this.cpu.serialize(),
-      apu: this.apu.serialize(),
-      lcd: this.lcd.serialize(),
-      timer: this.timer.serialize(),
-      cartridge: this.cartridge!.mbc.serialize(),
-    };
+    return this.emulator.serialize();
   }
 
   deserialize(data: any): void {
-    this.memoryBus!.deserialize(data.mem);
-    this.cpu.deserialize(data.cpu);
-    this.apu.deserialize(data.apu);
-    this.lcd.deserialize(data.lcd);
-    this.timer.deserialize(data.timer);
-    this.cartridge!.mbc.deserialize(data.cartridge);
+    this.emulator.deserialize(data);
   }
 
   reboot() {
-    this.lcd.reset();
-    this.timer.reset();
-    this.gamepad.reset();
-    this.apu.reset();
-    this.cpu.reset(this.lcd.isCGB);
+    this.emulator.reset();
     // Assume that we have continued through the bootloader
-    this.cpu.jump(0x100);
-    this.cpu.isRunning = true;
+    this.emulator.system.cpu.jump(0x100);
+    this.emulator.system.cpu.isRunning = true;
     this.sramSaveTimer = 0;
   }
 
@@ -141,82 +86,85 @@ export class Emulator {
 
   readStack(nBytes: number): string {
     const buffer = [];
-    const sp = this.cpu.registers[REGISTER.SP]; 
+    const sp = this.emulator.system.cpu.registers[REGISTER.SP]; 
     for (let i = 0; i < nBytes; i += 1) {
-      buffer.push(this.cpu.memory.read(sp + i).toString(16).padStart(2, '00'));
+      buffer.push(this.emulator.system.cpu.memory.read(sp + i).toString(16).padStart(2, '00'));
     }
     return buffer.join(' ');
   }
 
   update() {
     if (!this.isRunning) return;
-    if (this.cartridge == null) return;
+    if (this.emulator.cartridge == null) return;
+
+    const { ppu, timer, apu, cartridge } = this.emulator;
+    const { cpu, interrupter } = this.emulator.system;
   
     // Start LCD clock
     if (this.isStepping) {
-      this.cpu.isDebugging = true;
-      this.cpu.debugLogs = [];
+      cpu.isDebugging = true;
+      cpu.debugLogs = [];
     } else {
-      this.cpu.isDebugging = false;
+      cpu.isDebugging = false;
     }
 
     // Run system until stopped
     // 4.194304MHz -> Around 70224 clocks per each frame (17556 M-clocks)
-    let stopClock = this.cpu.clocks + this.lcd.getRemainingClockUntilVblank();
+    let stopClock = cpu.clocks + this.emulator.ppu.getRemainingClockUntilVblank();
     if (this.isStepping) {
-      stopClock = this.cpu.clocks + 1;
+      stopClock = cpu.clocks + 1;
       this.isRunning = false;
-      this.cpu.isTrapResolved = true;
-      this.cpu.isTrapped = false;
+      cpu.isTrapResolved = true;
+      cpu.isTrapped = false;
     }
-    while (this.cpu.clocks < stopClock && (this.cpu.isRunning || this.interrupter.acceptsInterrupt()) && !this.cpu.isTrapped) {
+    while (cpu.clocks < stopClock && (cpu.isRunning || interrupter.acceptsInterrupt()) && !cpu.isTrapped) {
       // Run CPU
-      let beforeClock = this.cpu.clocks;
-      this.interrupter.step();
-      let elapsedClocks = this.cpu.clocks - beforeClock;
+      let beforeClock = cpu.clocks;
+      interrupter.step();
+      let elapsedClocks = cpu.clocks - beforeClock;
       if (elapsedClocks === 0) {
         // CPU is halted; try to retrive next interesting clock
         const skipClocks = Math.min(
-          this.lcd.getNextWakeupClockAdvance(),
-          this.timer.getNextWakeupClockAdvance(),
+          ppu.getNextWakeupClockAdvance(),
+          timer.getNextWakeupClockAdvance(),
           // stopClock - this.cpu.clocks,
         );
         if (skipClocks === 0) break;
         elapsedClocks = skipClocks;
-        this.cpu.tick(skipClocks);
+        cpu.tick(skipClocks);
       }
     }
     if (this.isStepping) {
-      for (const log of this.cpu.debugLogs) {
+      for (const log of cpu.debugLogs) {
         if (log.address != null) {
           console.log('%c%s: %c%s; %c%s', 'color: #468cff', getHex16(log.address), 'color: inherit', log.data, 'color: gray', log.comment ?? '');
         } else {
           console.log(log.data, log.comment ?? '');
         }
       }
-      this.cpu.debugLogs = [];
+      cpu.debugLogs = [];
     }
     this.debugTextElem.innerText = [
-      `CLK: ${this.cpu.clocks}`,
-      this.cpu.getDebugState(),
-      this.interrupter.getDebugState(),
-      this.lcd.getDebugState(),
-      this.timer.getDebugState(),
-      this.cartridge.mbc.getDebugState(),
+      `CLK: ${cpu.clocks}`,
+      cpu.getDebugState(),
+      interrupter.getDebugState(),
+      ppu.getDebugState(),
+      timer.getDebugState(),
+      cartridge.mbc.getDebugState(),
       `Stack: ${this.readStack(20)}`,
-      this.apu.getDebugState(),
+      apu.getDebugState(),
     ].join('\n');
     // this.isRunning = false;
 
     // Render the screen, sound, etc
-    drawCanvas(this.lcd, this.ctx);
+    drawCanvas(ppu, this.ctx);
     if (!this.isStepping) {
-      this.apu.finalize();
+      apu.finalize();
       // Save the RAM state if the SRAM has not been updated for 100 frames
       // (debounce)
-      if (this.cartridge.mbc.ramUpdated) {
+      if (cartridge.mbc.ramUpdated) {
         this.sramSaveTimer = 100;
-        this.cartridge.mbc.ramUpdated = false;
+        cartridge.mbc.ramUpdated = false;
       }
       if (this.sramSaveTimer > 0) {
         this.sramSaveTimer -= 1;

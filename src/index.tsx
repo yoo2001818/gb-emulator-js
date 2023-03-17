@@ -63,10 +63,10 @@ async function start() {
       case 'q': {
         emulator.isRunning = !emulator.isRunning;
         emulator.isStepping = false;
-        if (emulator.cpu.isTrapped) {
+        if (emulator.emulator.system.cpu.isTrapped) {
           emulator.isRunning = true;
-          emulator.cpu.isTrapResolved = true;
-          emulator.cpu.isTrapped = false;
+          emulator.emulator.system.cpu.isTrapResolved = true;
+          emulator.emulator.system.cpu.isTrapped = false;
         }
         break;
       }
@@ -84,7 +84,7 @@ async function start() {
         break;
       }
       case 'r': {
-        dumpVRAM(emulator.lcd);
+        dumpVRAM(emulator.emulator.ppu);
         break;
       }
       case 't': {
@@ -96,13 +96,14 @@ async function start() {
         break;
       }
       case 's': {
-        emulator.cpu.isBreakpointsEnabled = !emulator.cpu.isBreakpointsEnabled;
+        emulator.emulator.system.cpu.isBreakpointsEnabled =
+          !emulator.emulator.system.cpu.isBreakpointsEnabled;
         break;
       }
       case '1': {
         const data = emulator.getSRAM();
         if (data != null) {
-          downloadFile(emulator.cartridge!.info.title + '.sav', data);
+          downloadFile(emulator.emulator.cartridge!.info.title + '.sav', data);
         }
         break;
       }
@@ -119,7 +120,7 @@ async function start() {
       }
       case '4': {
         if (storedState != null) {
-          downloadFile(emulator.cartridge!.info.title + '.state', JSON.stringify(storedState));
+          downloadFile(emulator.emulator.cartridge!.info.title + '.state', JSON.stringify(storedState));
         }
         break;
       }
@@ -127,14 +128,14 @@ async function start() {
     const mappedButton = CONTROLS_MAP[e.key];
     if (mappedButton != null) {
       e.preventDefault();
-      emulator.gamepad.set(mappedButton, true);
+      emulator.emulator.gamepad.set(mappedButton, true);
     }
   });
   window.addEventListener('keyup', (e) => {
     const mappedButton = CONTROLS_MAP[e.key];
     if (mappedButton != null) {
       e.preventDefault();
-      emulator.gamepad.set(mappedButton, false);
+      emulator.emulator.gamepad.set(mappedButton, false);
     }
   });
 
@@ -178,7 +179,7 @@ async function start() {
   });
   
   window.addEventListener('click', async () => {
-    emulator.apu.setup();
+    emulator.emulator.apu.setup();
   })
 }
 
