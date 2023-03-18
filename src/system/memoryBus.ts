@@ -5,7 +5,7 @@ const EMPTY_PORT: Memory = {
   write: () => {},
 };
 
-export class MemoryBus2 implements Memory {
+export class MemoryBus implements Memory {
   // There are 256 ports here, for each 256 bytes. In other words, the port
   // number is determined shifting 8 bits right.
   ports: Memory[];

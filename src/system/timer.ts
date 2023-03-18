@@ -1,4 +1,3 @@
-import { Memory } from "../memory/types";
 import { BaseSystem } from "./baseSystem";
 import { Interrupter, INTERRUPT_TYPE } from "./interrupter";
 
@@ -14,7 +13,7 @@ const SERIALIZE_FIELDS: (keyof SystemTimer)[] = [
   'timaDelayed',
 ];
 
-export class SystemTimer implements Memory {
+export class SystemTimer {
   interrupter: Interrupter;
   clocks: number = 0;
   tima: number = 0;
@@ -90,8 +89,9 @@ export class SystemTimer implements Memory {
   }
 
   getDebugState(): string {
+    const div = (this.clocks / DIV_TICK_RATE) & 0xff;
     return [
-      `DIV: ${this.read(0x4).toString(16).padStart(2, '0')} TIMA: ${this.read(0x5).toString(16).padStart(2, '0')} TMA: ${this.read(0x6).toString(16).padStart(2, '0')} TAC: ${this.read(7).toString(16).padStart(2, '0')}`,
+      `DIV: ${div.toString(16).padStart(2, '0')} TIMA: ${(this.tima & 0xff).toString(16).padStart(2, '0')} TMA: ${this.tma.toString(16).padStart(2, '0')} TAC: ${this.tac.toString(16).padStart(2, '0')}`,
     ].join('\n');
   }
 
@@ -141,60 +141,5 @@ export class SystemTimer implements Memory {
       }
     }
     this.clocks += 4;
-  }
-
-  read(pos: number): number {
-    // FF00...FF0F
-    switch (pos) {
-      case 0x4:
-        return (this.clocks / DIV_TICK_RATE) & 0xff;
-      case 0x5:
-        return this.tima & 0xff;
-      case 0x6:
-        return this.tma;
-      case 0x7:
-        return this.tac;
-      default:
-        return 0xff;
-    }
-  }
-
-  write(pos: number, value: number): void {
-    // FF00...FF0F
-    switch (pos) {
-      case 0x4: {
-        this.clocks = 0;
-        // Update the clock immediately
-        if (this.tac & 0x4) {
-          const oldBit = this.clocks & TIMA_TICK_BITS[this.tac & 0x3];
-          if (oldBit) {
-            this.tima += 1;
-            this._postUpdateTIMA();
-          }
-        }
-        return;
-      }
-      case 0x5:
-        this.tima = value;
-        return;
-      case 0x6:
-        this.tma = value;
-        return;
-      case 0x7: {
-        const oldTAC = this.tac;
-        this.tac = value;
-        // Update the clock immediately
-        // DMG bug - TAC increments even if enabled flag becomes false
-        if (oldTAC & 0x4) {
-          const oldBit = this.clocks & TIMA_TICK_BITS[oldTAC & 0x3];
-          const newBit = this.clocks & TIMA_TICK_BITS[value & 0x3];
-          if (!newBit && oldBit) {
-            this.tima += 1;
-            this._postUpdateTIMA();
-          }
-        }
-        return;
-      }
-    }
   }
 }

@@ -1,16 +1,16 @@
 import { CPU } from '../cpu/cpu';
 import { IOBus } from '../io/ioBus';
 import { Interrupter } from './interrupter';
-import { MemoryBus2 } from './memoryBus2';
+import { MemoryBus } from './memoryBus';
 
 export class BaseSystem {
   cpu: CPU;
   interrupter: Interrupter;
-  memoryBus: MemoryBus2;
+  memoryBus: MemoryBus;
   ioBus: IOBus;
 
   constructor() {
-    this.memoryBus = new MemoryBus2();
+    this.memoryBus = new MemoryBus();
     this.cpu = new CPU(this.memoryBus);
     this.interrupter = new Interrupter(this.cpu);
     this.ioBus = new IOBus();

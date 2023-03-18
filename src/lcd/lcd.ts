@@ -1,6 +1,5 @@
 import { BankedRAM } from '../memory/bankedRAM';
 import { LockableRAM } from '../memory/lockableRAM';
-import { Memory } from '../memory/types';
 import { createAccessor, deserializeBytes, serializeBytes } from '../memory/utils';
 import { BaseSystem } from '../system/baseSystem';
 import { Interrupter, INTERRUPT_TYPE } from '../system/interrupter';
@@ -87,7 +86,7 @@ const SERIALIZE_FIELDS: (keyof LCD)[] = [
   'ocps',
 ];
 
-export class LCD implements Memory {
+export class LCD {
   interrupter!: Interrupter;
   lcdc: number = 0;
   stat: number = 0;
@@ -148,190 +147,10 @@ export class LCD implements Memory {
 
   getDebugState(): string {
     return [
-      `LCDC: ${this.read(LCD_IO.LCDC).toString(16).padStart(2, '0')} STAT: ${this.read(LCD_IO.STAT).toString(16).padStart(2, '0')}`,
-      `LY: ${this.read(LCD_IO.LY).toString(16).padStart(2, '0')} LYC: ${this.read(LCD_IO.LYC).toString(16).padStart(2, '0')}`,
+      `LCDC: ${this.lcdc.toString(16).padStart(2, '0')} STAT: ${this.stat.toString(16).padStart(2, '0')}`,
+      `LY: ${this.ly.toString(16).padStart(2, '0')} LYC: ${this.lyc.toString(16).padStart(2, '0')}`,
       `LCLK: ${this.lineClock} CLK: ${this.clocks} VBK: ${this.vramBank}`,
     ].join('\n');
-  }
-
-  read(pos: number): number {
-    if (this.isCGB) {
-      switch (pos) {
-        case LCD_IO.VBK:
-          return 0xfe | this.vramBank;
-        case LCD_IO.HDMA1:
-          return (this.hdma.src >>> 8) & 0xff;
-        case LCD_IO.HDMA2:
-          return this.hdma.src & 0xff;
-        case LCD_IO.HDMA3:
-          return (this.hdma.dest >>> 8) & 0xff;
-        case LCD_IO.HDMA4:
-          return this.hdma.dest & 0xff;
-        case LCD_IO.HDMA5: {
-          const remaining = this.hdma.length - this.hdma.pos;
-          if (remaining === 0) return 0xff;
-          let output = (Math.floor(remaining / 0x10)) & 0x7f;
-          if (!this.hdma.isRunning) output |= 0x80;
-          return output;
-        }
-        case LCD_IO.BCPS:
-          return this.bcps;
-        case LCD_IO.BCPD: {
-          const pos = this.bcps & 0x3f;
-          return this.bgPalette[pos];
-        }
-        case LCD_IO.OCPS:
-          return this.ocps;
-        case LCD_IO.OCPD: {
-          const pos = this.ocps & 0x3f;
-          return this.objPalette[pos];
-        }
-        case LCD_IO.OPRI:
-          return 0;
-      }
-    }
-    switch (pos) {
-      case LCD_IO.LCDC:
-        return this.lcdc;
-      case LCD_IO.STAT: {
-        let bits = (this.stat & 0xf8);
-        bits |= this.mode;
-        if (this.ly === this.lyc) bits |= 4;
-        return bits;
-      }
-      case LCD_IO.SCY:
-        return this.scy;
-      case LCD_IO.SCX:
-        return this.scx;
-      case LCD_IO.LY:
-        return this.ly;
-      case LCD_IO.LYC:
-        return this.lyc;
-      case LCD_IO.DMA:
-        return 0xff;
-      case LCD_IO.BGP:
-        return this.bgp;
-      case LCD_IO.OBP0:
-        return this.obp0;
-      case LCD_IO.OBP1:
-        return this.obp1;
-      case LCD_IO.WY:
-        return this.wy;
-      case LCD_IO.WX:
-        return this.wx;
-      default:
-        return 0xff;
-    }
-  }
-
-  write(pos: number, value: number): void {
-    if (this.isCGB) {
-      switch (pos) {
-        case LCD_IO.VBK:
-          this.vramBank = value & 1;
-          break;
-        case LCD_IO.HDMA1:
-          this.hdma.src = (this.hdma.src & 0xff) | (value << 8);
-          break;
-        case LCD_IO.HDMA2:
-          this.hdma.src = (this.hdma.src & 0xff00) | value;
-          break;
-        case LCD_IO.HDMA3:
-          this.hdma.dest = (this.hdma.dest & 0xff) | (value << 8);
-          break;
-        case LCD_IO.HDMA4:
-          this.hdma.dest = (this.hdma.dest & 0xff00) | value;
-          break;
-        case LCD_IO.HDMA5:
-          if (!this.hdma.isRunning) {
-            this.hdma.isRunning = true;
-            this.hdma.useHBlank = (value & 0x80) !== 0;
-            this.hdma.pos = 0;
-            this.hdma.length = ((value & 0x7f) + 1) * 0x10;
-            if (!this.hdma.useHBlank) {
-              // Hang the CPU for the necessary time
-              this.interrupter.cpu.tick(this.hdma.length / 2);
-            }
-          } else {
-            this.hdma.isRunning = false;
-          }
-          break;
-        case LCD_IO.BCPS:
-          this.bcps = value & 0xbf;
-          break;
-        case LCD_IO.BCPD: {
-          const pos = this.bcps & 0x3f;
-          const autoIncrement = (this.bcps & 0x80) !== 0;
-          if (autoIncrement) {
-            this.bcps = ((this.bcps + 1) & 0x3f) | (this.bcps & 0x80);
-          }
-          this.bgPalette[pos] = value;
-          break;
-        }
-        case LCD_IO.OCPS:
-          this.ocps = value & 0xbf;
-          break;
-        case LCD_IO.OCPD: {
-          const pos = this.ocps & 0x3f;
-          const autoIncrement = (this.ocps & 0x80) !== 0;
-          if (autoIncrement) {
-            this.ocps = ((this.ocps + 1) & 0x3f) | (this.ocps & 0x80);
-          }
-          this.objPalette[pos] = value;
-          break;
-        }
-        case LCD_IO.OPRI:
-          break;
-      }
-    }
-    switch (pos) {
-      case LCD_IO.LCDC: {
-        if (!(this.lcdc & 0x80) && (value & 0x80)) {
-          // LCD restarting
-        } else if ((this.lcdc & 0x80) && !(value & 0x80)) {
-          // LCD stopping
-        }
-        this.lcdc = value;
-        return;
-      }
-      case LCD_IO.STAT:
-        this.stat = value;
-        return;
-      case LCD_IO.SCY:
-        this.scy = value;
-        return;
-      case LCD_IO.SCX:
-        this.scx = value;
-        return;
-      case LCD_IO.LY:
-        this.ly = value;
-        return;
-      case LCD_IO.LYC:
-        this.lyc = value;
-        return;
-      case LCD_IO.DMA: {
-        // Perform DMA operation
-        const source = value << 8;
-        this.dmaSrc = source;
-        this.dmaPos = 0;
-        return;
-      }
-      case LCD_IO.BGP:
-        this.bgp = value;
-        return;
-      case LCD_IO.OBP0:
-        this.obp0 = value;
-        return;
-      case LCD_IO.OBP1:
-        this.obp1 = value;
-        return;
-      case LCD_IO.WY:
-        this.wy = value;
-        return;
-      case LCD_IO.WX:
-        this.wx = value;
-        return;
-    }
   }
 
   setInterrupter(interrupter: Interrupter): void {
