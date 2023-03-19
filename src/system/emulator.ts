@@ -143,17 +143,17 @@ export class Emulator {
         }
       }
       cpu.debugLogs = [];
+      this.debugTextElem.innerText = [
+        `CLK: ${cpu.clocks}`,
+        cpu.getDebugState(),
+        interrupter.getDebugState(),
+        ppu.getDebugState(),
+        timer.getDebugState(),
+        cartridge.mbc.getDebugState(),
+        `Stack: ${this.readStack(20)}`,
+        apu.getDebugState(),
+      ].join('\n');
     }
-    this.debugTextElem.innerText = [
-      `CLK: ${cpu.clocks}`,
-      cpu.getDebugState(),
-      interrupter.getDebugState(),
-      ppu.getDebugState(),
-      timer.getDebugState(),
-      cartridge.mbc.getDebugState(),
-      `Stack: ${this.readStack(20)}`,
-      apu.getDebugState(),
-    ].join('\n');
     // this.isRunning = false;
 
     // Render the screen, sound, etc
