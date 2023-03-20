@@ -2,6 +2,7 @@ import { APU } from '../audio/apu';
 import { Cartridge } from '../cartridge/cartridge';
 import { LCD } from '../lcd/lcd';
 import { RAM } from '../memory/ram';
+import { WRAM } from '../memory/wram';
 import { BaseSystem } from './baseSystem';
 import { GamepadController } from './gamepad';
 import { SystemTimer } from './timer';
@@ -12,7 +13,7 @@ export class BaseEmulator {
   apu: APU;
   timer: SystemTimer;
   gamepad: GamepadController;
-  wram: RAM;
+  wram: WRAM;
   hram: RAM;
   cartridge: Cartridge | null;
 
@@ -22,7 +23,7 @@ export class BaseEmulator {
     this.apu = new APU();
     this.timer = new SystemTimer(this.system.interrupter);
     this.gamepad = new GamepadController();
-    this.wram = new RAM(0x2000);
+    this.wram = new WRAM();
     this.hram = new RAM(0x80);
     this.cartridge = null;
   }
@@ -63,8 +64,7 @@ export class BaseEmulator {
       this.cartridge.reset();
     }
     
-    this.system.memoryBus.register(0xc0, 0xdf, this.wram);
-    this.system.memoryBus.register(0xe0, 0xfd, this.wram);
+    this.wram.register(this.system);
     this.ppu.register(this.system);
     this.apu.register(this.system);
     this.timer.register(this.system);
@@ -75,8 +75,6 @@ export class BaseEmulator {
     }
 
     this.system.cpu.onTick = this.advanceClocks.bind(this);
-    console.log(this.system.ioBus);
-    console.log(this.system.memoryBus);
   }
 
   advanceClocks(ticks: number): void {

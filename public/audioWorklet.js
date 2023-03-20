@@ -1,4 +1,4 @@
-const BUFFER_SIZE = 2048;
+const BUFFER_SIZE = 8192;
 const RESUME_SIZE = 256;
 const WAIT_SIZE = 128;
 

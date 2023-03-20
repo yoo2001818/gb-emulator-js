@@ -5,12 +5,12 @@ export class BankedRAM implements Memory {
   bytes: Uint8Array;
   size: number;
   isLocked: () => boolean;
-  getOffset: () => number;
+  getOffset: (addr: number) => number;
 
   constructor(
     size: number = 0x2000,
     isLocked: () => boolean,
-    getOffset: () => number,
+    getOffset: (addr: number) => number,
   ) {
     this.bytes = new Uint8Array(size);
     this.size = size;
@@ -31,12 +31,12 @@ export class BankedRAM implements Memory {
     if (pos > this.size) {
       return 0xff;
     }
-    return this.bytes[(pos + this.getOffset()) % this.size];
+    return this.bytes[(pos + this.getOffset(pos)) % this.size];
   }
 
   write(pos: number, value: number): void {
     if (this.isLocked()) return;
-    this.bytes[(pos + this.getOffset()) % this.size] = value;
+    this.bytes[(pos + this.getOffset(pos)) % this.size] = value;
   }
 
   reset(): void {
