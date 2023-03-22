@@ -79,8 +79,6 @@ const SERIALIZE_FIELDS: (keyof LCD)[] = [
   'lineClock',
   'clocks',
   'mode',
-  'dmaSrc',
-  'dmaPos',
   'vramBank',
   'bcps',
   'ocps',
@@ -103,8 +101,6 @@ export class LCD {
   lineClock: number = 0;
   clocks: number = 0;
   mode: number = 0;
-  dmaSrc: number = 0;
-  dmaPos: number = -1;
   framebuffer!: Uint16Array;
   lineData!: Uint8Array;
   vram!: BankedRAM;
@@ -184,16 +180,6 @@ export class LCD {
     ioBus.register(0x49, 'OBP1', createAccessor(this, 'obp1'));
     ioBus.register(0x4a, 'WY', createAccessor(this, 'wy'));
     ioBus.register(0x4b, 'WX', createAccessor(this, 'wx'));
-    // TODO: Move it out of way
-    ioBus.register(0x46, 'DMA', {
-      read: () => 0xff,
-      write: (_, value) => {
-        // Perform DMA operation
-        const source = value << 8;
-        this.dmaSrc = source;
-        this.dmaPos = 0;
-      },
-    });
     // GBC registers
     ioBus.register(0x4f, 'VBK', {
       read: () => 0xfe | this.vramBank,
@@ -294,15 +280,10 @@ export class LCD {
     this.lineClock = 0;
     this.clocks = 0;
     this.mode = 0;
-    this.dmaPos = -1;
-    this.dmaSrc = 0;
     this.framebuffer = new Uint16Array(LCD_WIDTH * LCD_HEIGHT);
     this.lineData = new Uint8Array(LCD_WIDTH);
     this.vram = new BankedRAM(0x4000, () => false, () => this.vramBank * 0x2000);
-    this.oam = new LockableRAM(0x100, () => {
-      if (this.dmaPos >= 0) return true;
-      return false;
-    });
+    this.oam = new LockableRAM(0x100, () => false);
     this.vramBank = 0;
     this.bcps = 0;
     this.ocps = 0;
@@ -390,19 +371,6 @@ export class LCD {
     return 17556 - this.clocks + 1;
   }
 
-  _runDMA(): void {
-    // Run DMA operation
-    if (this.dmaPos >= 0) {
-      const pos = this.dmaPos;
-      const memory = this.interrupter.cpu.memory;
-      this.oam.bytes[pos] = memory.read(this.dmaSrc + pos);
-      this.dmaPos += 1;
-      if (this.dmaPos >= 160) {
-        this.dmaPos = -1;
-      }
-    }
-  }
-
   _runHDMA(): void {
     if (!this.isCGB) return;
     if (!this.hdma.isRunning) return;
@@ -428,7 +396,6 @@ export class LCD {
   }
 
   advanceClock(): void {
-    this._runDMA();
     this._runHDMA();
     if ((this.lcdc & 0x80) === 0) {
       // LCD turned off; do nothing
