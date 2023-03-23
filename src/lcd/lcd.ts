@@ -55,15 +55,6 @@ const LINE_CLOCK_VBLANK = 456; // V-Blank (each scanline)
 export const LCD_WIDTH = 160;
 export const LCD_HEIGHT = 144;
 
-interface HDMAState {
-  src: number;
-  dest: number; 
-  useHBlank: boolean;
-  isRunning: boolean;
-  length: number;
-  pos: number;
-}
-
 const SERIALIZE_FIELDS: (keyof LCD)[] = [
   'lcdc',
   'stat',
@@ -113,7 +104,6 @@ export class LCD {
   ocps: number = 0;
   bgPalette!: Uint8Array;
   objPalette!: Uint8Array;
-  hdma!: HDMAState;
   // This is hardcoded by CGB boot ROM
   // opri: number = 0;
 
@@ -215,54 +205,6 @@ export class LCD {
         this.objPalette[pos] = value;
       },
     });
-    // TODO: Move it out of way
-    ioBus.register(0x51, 'HDMA1', {
-      read: () => (this.hdma.src >>> 8) & 0xff,
-      write: (_, value) => {
-        this.hdma.src = (this.hdma.src & 0xff) | (value << 8);
-      },
-    });
-    ioBus.register(0x52, 'HDMA2', {
-      read: () => this.hdma.src & 0xff,
-      write: (_, value) => {
-        this.hdma.src = (this.hdma.src & 0xff00) | value;
-      },
-    });
-    ioBus.register(0x53, 'HDMA3', {
-      read: () => (this.hdma.dest >>> 8) & 0xff,
-      write: (_, value) => {
-        this.hdma.dest = (this.hdma.dest & 0xff) | (value << 8);
-      },
-    });
-    ioBus.register(0x54, 'HDMA4', {
-      read: () => this.hdma.dest & 0xff,
-      write: (_, value) => {
-        this.hdma.dest = (this.hdma.dest & 0xff00) | value;
-      },
-    });
-    ioBus.register(0x55, 'HDMA5', {
-      read: () => {
-        const remaining = this.hdma.length - this.hdma.pos;
-        if (remaining === 0) return 0xff;
-        let output = (Math.floor(remaining / 0x10)) & 0x7f;
-        if (!this.hdma.isRunning) output |= 0x80;
-        return output;
-      },
-      write: (_, value) => {
-        if (!this.hdma.isRunning) {
-          this.hdma.isRunning = true;
-          this.hdma.useHBlank = (value & 0x80) !== 0;
-          this.hdma.pos = 0;
-          this.hdma.length = ((value & 0x7f) + 1) * 0x10;
-          if (!this.hdma.useHBlank) {
-            // Hang the CPU for the necessary time
-            this.interrupter.cpu.tick(this.hdma.length / 2);
-          }
-        } else {
-          this.hdma.isRunning = false;
-        }
-      },
-    });
   }
 
   reset() {
@@ -289,14 +231,6 @@ export class LCD {
     this.ocps = 0;
     this.bgPalette = new Uint8Array(64);
     this.objPalette = new Uint8Array(64);
-    this.hdma = {
-      src: 0,
-      dest: 0,
-      useHBlank: false,
-      isRunning: false,
-      length: 0,
-      pos: 0,
-    };
   }
 
   handleLineChange(): void {
@@ -371,32 +305,7 @@ export class LCD {
     return 17556 - this.clocks + 1;
   }
 
-  _runHDMA(): void {
-    if (!this.isCGB) return;
-    if (!this.hdma.isRunning) return;
-    // FIXME: Stall the CPU when we're copying HDMA data in general-purpose mode
-    if (this.hdma.useHBlank && this.mode !== 0) return;
-    const memory = this.interrupter.cpu.memory;
-    const { src, dest, length } = this.hdma;
-    const realSrc = src & 0xfff0;
-    const realDest = (dest & 0x1ff0) + 0x8000;
-    // Copy 2 bytes in one M-clock
-    for (let i = 0; i < 2; i += 1) {
-      const pos = this.hdma.pos;
-      const value = memory.read(realSrc + pos);
-      memory.write(realDest + pos, value);
-      this.hdma.pos += 1;
-      if (this.hdma.pos === length) {
-        this.hdma.isRunning = false;
-        this.hdma.pos = 0;
-        this.hdma.length = 0;
-        break;
-      }
-    }
-  }
-
   advanceClock(): void {
-    this._runHDMA();
     if ((this.lcdc & 0x80) === 0) {
       // LCD turned off; do nothing
       return;

@@ -1,4 +1,4 @@
-import { BaseSystem } from "./baseSystem";
+import { BaseSystem } from './baseSystem';
 
 export class DMA {
   src: number = 0;

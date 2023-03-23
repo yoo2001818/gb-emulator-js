@@ -6,6 +6,7 @@ import { WRAM } from '../memory/wram';
 import { BaseSystem } from './baseSystem';
 import { DMA } from './dma';
 import { GamepadController } from './gamepad';
+import { HDMA } from './hdma';
 import { SystemTimer } from './timer';
 
 export class BaseEmulator {
@@ -17,6 +18,7 @@ export class BaseEmulator {
   wram: WRAM;
   hram: RAM;
   dma: DMA;
+  hdma: HDMA;
   cartridge: Cartridge | null;
 
   constructor() {
@@ -28,6 +30,7 @@ export class BaseEmulator {
     this.wram = new WRAM();
     this.hram = new RAM(0x80);
     this.dma = new DMA();
+    this.hdma = new HDMA();
     this.cartridge = null;
   }
 
@@ -41,6 +44,7 @@ export class BaseEmulator {
       wram: this.wram.serialize(),
       hram: this.hram.serialize(),
       dma: this.dma.serialize(),
+      hdma: this.hdma.serialize(),
       cartridge: this.cartridge!.mbc.serialize(),
     };
   }
@@ -54,6 +58,7 @@ export class BaseEmulator {
     this.wram.deserialize(data.wram);
     this.hram.deserialize(data.hram);
     this.dma.deserialize(data.dma);
+    this.hdma.deserialize(data.hdma);
     this.cartridge!.mbc.deserialize(data.cartridge);
   }
 
@@ -66,6 +71,7 @@ export class BaseEmulator {
     this.timer.reset();
     this.gamepad.reset();
     this.dma.reset();
+    this.hdma.reset();
     if (this.cartridge != null) {
       this.cartridge.reset();
     }
@@ -77,6 +83,7 @@ export class BaseEmulator {
     this.gamepad.register(this.system);
     this.system.ioBus.registerMemory(0x80, 0x7f, 'HRAM', this.hram);
     this.dma.register(this.system);
+    this.hdma.register(this.system);
     if (this.cartridge != null) {
       this.cartridge.register(this.system);
     }
@@ -90,6 +97,7 @@ export class BaseEmulator {
       this.apu.advanceClock();
       this.timer.advanceClock();
       this.dma.advanceClock();
+      this.hdma.advanceClock();
     }
   }
 }
