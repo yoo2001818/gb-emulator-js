@@ -3,6 +3,7 @@ import { LockableRAM } from '../memory/lockableRAM';
 import { createAccessor, deserializeBytes, serializeBytes } from '../memory/utils';
 import { BaseSystem } from '../system/baseSystem';
 import { Interrupter, INTERRUPT_TYPE } from '../system/interrupter';
+import { SystemType } from '../system/systemType';
 import { renderLine } from './render';
 
 export const LCD_IO = {
@@ -98,7 +99,7 @@ export class LCD {
   oam!: LockableRAM;
 
   // CGB specific features
-  isCGB: boolean;
+  isCGB: boolean = false;
   vramBank: number = 0;
   bcps: number = 0;
   ocps: number = 0;
@@ -107,8 +108,7 @@ export class LCD {
   // This is hardcoded by CGB boot ROM
   // opri: number = 0;
 
-  constructor(interrupter: Interrupter, isCGB?: boolean) {
-    this.isCGB = isCGB ?? false;
+  constructor(interrupter: Interrupter) {
     this.setInterrupter(interrupter);
     this.reset();
   }
@@ -145,11 +145,24 @@ export class LCD {
 
   register(system: BaseSystem): void {
     const { ioBus, memoryBus } = system;
+    this.isCGB = system.type === SystemType.CGB;
     // VRAM and OAM
     memoryBus.register(0x80, 0x9f, this.vram);
     memoryBus.register(0xfe, 0xfe, this.oam);
     // GB registers
-    ioBus.register(0x40, 'LCDC', createAccessor(this, 'lcdc'));
+    ioBus.register(0x40, 'LCDC', {
+      read: () => this.lcdc,
+      write: (_, value) => {
+        if ((this.lcdc & 0x80) !== (value & 0x80)) {
+          // LCD stopping / restarting
+          this.ly = 0;
+          this.mode = 0;
+          this.lineClock = 0;
+          this.clocks = 0;
+        }
+        this.lcdc = value;
+      },
+    });
     ioBus.register(0x41, 'STAT', {
       read: () => {
         let bits = (this.stat & 0xf8);
@@ -170,41 +183,43 @@ export class LCD {
     ioBus.register(0x49, 'OBP1', createAccessor(this, 'obp1'));
     ioBus.register(0x4a, 'WY', createAccessor(this, 'wy'));
     ioBus.register(0x4b, 'WX', createAccessor(this, 'wx'));
-    // GBC registers
-    ioBus.register(0x4f, 'VBK', {
-      read: () => 0xfe | this.vramBank,
-      write: (_, value) => { this.vramBank = value & 1; },
-    });
-    ioBus.register(0x68, 'BCPS', createAccessor(this, 'bcps'));
-    ioBus.register(0x69, 'BCPD', {
-      read: () => {
-        const pos = this.bcps & 0x3f;
-        return this.bgPalette[pos];
-      },
-      write: (_, value) => {
-        const pos = this.bcps & 0x3f;
-        const autoIncrement = (this.bcps & 0x80) !== 0;
-        if (autoIncrement) {
-          this.bcps = ((this.bcps + 1) & 0x3f) | (this.bcps & 0x80);
-        }
-        this.bgPalette[pos] = value;
-      },
-    });
-    ioBus.register(0x6a, 'OCPS', createAccessor(this, 'ocps'));
-    ioBus.register(0x6b, 'OCPD', {
-      read: () => {
-        const pos = this.ocps & 0x3f;
-        return this.objPalette[pos];
-      },
-      write: (_, value) => {
-        const pos = this.ocps & 0x3f;
-        const autoIncrement = (this.ocps & 0x80) !== 0;
-        if (autoIncrement) {
-          this.ocps = ((this.ocps + 1) & 0x3f) | (this.ocps & 0x80);
-        }
-        this.objPalette[pos] = value;
-      },
-    });
+    if (system.type === SystemType.CGB) {
+      // GBC registers
+      ioBus.register(0x4f, 'VBK', {
+        read: () => 0xfe | this.vramBank,
+        write: (_, value) => { this.vramBank = value & 1; },
+      });
+      ioBus.register(0x68, 'BCPS', createAccessor(this, 'bcps'));
+      ioBus.register(0x69, 'BCPD', {
+        read: () => {
+          const pos = this.bcps & 0x3f;
+          return this.bgPalette[pos];
+        },
+        write: (_, value) => {
+          const pos = this.bcps & 0x3f;
+          const autoIncrement = (this.bcps & 0x80) !== 0;
+          if (autoIncrement) {
+            this.bcps = ((this.bcps + 1) & 0x3f) | (this.bcps & 0x80);
+          }
+          this.bgPalette[pos] = value;
+        },
+      });
+      ioBus.register(0x6a, 'OCPS', createAccessor(this, 'ocps'));
+      ioBus.register(0x6b, 'OCPD', {
+        read: () => {
+          const pos = this.ocps & 0x3f;
+          return this.objPalette[pos];
+        },
+        write: (_, value) => {
+          const pos = this.ocps & 0x3f;
+          const autoIncrement = (this.ocps & 0x80) !== 0;
+          if (autoIncrement) {
+            this.ocps = ((this.ocps + 1) & 0x3f) | (this.ocps & 0x80);
+          }
+          this.objPalette[pos] = value;
+        },
+      });
+    }
   }
 
   reset() {

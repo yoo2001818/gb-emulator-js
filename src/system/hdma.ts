@@ -1,4 +1,5 @@
 import { BaseSystem } from './baseSystem';
+import { SystemType } from './systemType';
 
 const SERIALIZE_FIELDS: (keyof HDMA)[] = [
   'src',
@@ -38,6 +39,7 @@ export class HDMA {
   }
 
   register(system: BaseSystem): void {
+    if (system.type !== SystemType.CGB) return;
     const { ioBus } = system;
     ioBus.register(0x51, 'HDMA1', {
       read: () => (this.src >>> 8) & 0xff,

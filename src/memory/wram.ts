@@ -1,4 +1,5 @@
 import { BaseSystem } from '../system/baseSystem';
+import { SystemType } from '../system/systemType';
 import { BankedRAM } from './bankedRAM';
 
 export class WRAM {
@@ -31,15 +32,17 @@ export class WRAM {
     const { ioBus, memoryBus } = system;
     memoryBus.register(0xc0, 0xdf, this.ram);
     memoryBus.register(0xe0, 0xfd, this.ram);
-    ioBus.register(0x70, 'SVBK', {
-      read: () => this.bank,
-      write: (_, value) => {
-        this.bank = value & 0x7;
-        if (this.bank === 0) {
-          this.bank = 1;
-        }
-      },
-    });
+    if (system.type === SystemType.CGB) {
+      ioBus.register(0x70, 'SVBK', {
+        read: () => this.bank,
+        write: (_, value) => {
+          this.bank = value & 0x7;
+          if (this.bank === 0) {
+            this.bank = 1;
+          }
+        },
+      });
+    }
   }
 
 }

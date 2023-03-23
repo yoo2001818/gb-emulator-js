@@ -4,6 +4,7 @@ import { loadCartridge } from '../cartridge/cartridge';
 import { readSaveStorage, writeSaveStorage } from '../storage/saveStorage';
 import { getHex16 } from '../cpu/ops/utils';
 import { BaseEmulator } from './baseEmulator';
+import { getSystemType, SystemType } from './systemType';
 
 export class Emulator {
   emulator: BaseEmulator;
@@ -36,8 +37,7 @@ export class Emulator {
       cart.mbc.loadRAM(saveData);
     }
     this.emulator.cartridge = cart;
-    this.emulator.ppu.isCGB = cart.info.supportsCGB;
-    this.reboot();
+    this.reboot(getSystemType(cart.info));
   }
 
   loadSRAMFromFile(ram: Uint8Array): void {
@@ -68,11 +68,8 @@ export class Emulator {
     this.emulator.deserialize(data);
   }
 
-  reboot() {
-    this.emulator.reset();
-    // Assume that we have continued through the bootloader
-    this.emulator.system.cpu.jump(0x100);
-    this.emulator.system.cpu.isRunning = true;
+  reboot(type?: SystemType) {
+    this.emulator.reset(type);
     this.sramSaveTimer = 0;
   }
 

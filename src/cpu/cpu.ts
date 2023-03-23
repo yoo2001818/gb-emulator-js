@@ -25,16 +25,12 @@ export class CPU {
 
   constructor(memory: Memory) {
     this.memory = memory;
-    this.reset(false);
+    this.reset([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     this.onTick = () => {};
   }
 
-  reset(isCGB?: boolean): void {
-    if (isCGB) {
-      this.registers = [0x11, 0, 0x13, 0, 0xd8, 0xb0, 0x01, 0x4d, 0, 0xfffe];
-    } else {
-      this.registers = [0x01, 0, 0x13, 0, 0xd8, 0xb0, 0x01, 0x4d, 0, 0xfffe];
-    }
+  reset(registers: number[]): void {
+    this.registers = registers.slice();
     this.clocks = 0;
     this.isInterruptsEnabled = false;
     this.isInterruptsEnabledNext = false;

@@ -7,6 +7,7 @@ import { BaseSystem } from './baseSystem';
 import { DMA } from './dma';
 import { GamepadController } from './gamepad';
 import { HDMA } from './hdma';
+import { SystemType } from './systemType';
 import { SystemTimer } from './timer';
 
 export class BaseEmulator {
@@ -36,8 +37,7 @@ export class BaseEmulator {
 
   serialize(): any {
     return {
-      cpu: this.system.cpu.serialize(),
-      interrupter: this.system.interrupter.serialize(),
+      ...this.system.serialize(),
       ppu: this.ppu.serialize(),
       apu: this.apu.serialize(),
       timer: this.timer.serialize(),
@@ -50,8 +50,7 @@ export class BaseEmulator {
   }
 
   deserialize(data: any): void {
-    this.system.cpu.deserialize(data.cpu);
-    this.system.interrupter.deserialize(data.interrupter);
+    this.system.deserialize(data);
     this.ppu.deserialize(data.ppu);
     this.apu.deserialize(data.apu);
     this.timer.deserialize(data.timer);
@@ -62,8 +61,8 @@ export class BaseEmulator {
     this.cartridge!.mbc.deserialize(data.cartridge);
   }
 
-  reset(): void {
-    this.system.reset();
+  reset(type?: SystemType): void {
+    this.system.reset(type);
     this.wram.reset();
     this.hram.reset();
     this.ppu.reset();
@@ -89,6 +88,10 @@ export class BaseEmulator {
     }
 
     this.system.cpu.onTick = this.advanceClocks.bind(this);
+
+    // Start the CPU
+    this.system.cpu.jump(0x100);
+    this.system.cpu.isRunning = true;
   }
 
   advanceClocks(ticks: number): void {
