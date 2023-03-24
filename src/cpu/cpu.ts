@@ -9,6 +9,7 @@ export class CPU {
   memory: Memory;
   onTick: (clocks: number) => void;
   isRunning = false;
+  isStopped = false;
   isInterruptsEnabled = false;
   isInterruptsEnabledNext = false;
 
@@ -32,11 +33,17 @@ export class CPU {
   reset(registers: number[]): void {
     this.registers = registers.slice();
     this.clocks = 0;
+    this.isStopped = false;
     this.isInterruptsEnabled = false;
     this.isInterruptsEnabledNext = false;
     this.isDebugging = false;
     this.debugLogs = [];
     this.opSizes.fill(0);
+  }
+
+  resume(): void {
+    this.isStopped = false;
+    this.isRunning = true;
   }
 
   serialize(): any {
@@ -103,7 +110,12 @@ export class CPU {
     this.onTick(clocks);
   }
 
-  log(type: CPULog['type'], data: string, address?: number, comment?: string): void {
+  log(
+    type: CPULog['type'],
+    data: string,
+    address?: number,
+    comment?: string
+  ): void {
     this.debugLogs.push({ type, data, address, comment });
     if (this.debugLogs.length > 1000) {
       this.debugLogs.shift();
@@ -129,17 +141,39 @@ export class CPU {
 
   getDebugState(): string {
     return [
-      `PC: ${this.registers[REGISTER.PC].toString(16).padStart(4, '0')} SP: ${this.registers[REGISTER.SP].toString(16).padStart(4, '0')}`,
-      `A: ${this.registers[REGISTER.A].toString(16).padStart(4, '0')} BC: ${((this.registers[REGISTER.B] << 8) | this.registers[REGISTER.C]).toString(16).padStart(4, '0')}`,
-      `DE: ${((this.registers[REGISTER.D] << 8) | this.registers[REGISTER.E]).toString(16).padStart(4, '0')} HL: ${((this.registers[REGISTER.H] << 8) | this.registers[REGISTER.L]).toString(16).padStart(4, '0')}`,
-      `Z: ${this.getFlag(FLAG.Z)} N: ${this.getFlag(FLAG.N)} H: ${this.getFlag(FLAG.H)} C: ${this.getFlag(FLAG.C)}`,
+      `PC: ${this.registers[REGISTER.PC]
+        .toString(16)
+        .padStart(4, '0')} SP: ${this.registers[REGISTER.SP]
+        .toString(16)
+        .padStart(4, '0')}`,
+      `A: ${this.registers[REGISTER.A].toString(16).padStart(4, '0')} BC: ${(
+        (this.registers[REGISTER.B] << 8) |
+        this.registers[REGISTER.C]
+      )
+        .toString(16)
+        .padStart(4, '0')}`,
+      `DE: ${((this.registers[REGISTER.D] << 8) | this.registers[REGISTER.E])
+        .toString(16)
+        .padStart(4, '0')} HL: ${(
+        (this.registers[REGISTER.H] << 8) |
+        this.registers[REGISTER.L]
+      )
+        .toString(16)
+        .padStart(4, '0')}`,
+      `Z: ${this.getFlag(FLAG.Z)} N: ${this.getFlag(FLAG.N)} H: ${this.getFlag(
+        FLAG.H
+      )} C: ${this.getFlag(FLAG.C)}`,
     ].join('\n');
   }
 
   step(): void {
     this.isInterruptsEnabled = this.isInterruptsEnabledNext;
     const pc = this.registers[REGISTER.PC];
-    if (!this.isTrapResolved && this.isBreakpointsEnabled && (this.breakpoints.includes(pc))) {
+    if (
+      !this.isTrapResolved &&
+      this.isBreakpointsEnabled &&
+      this.breakpoints.includes(pc)
+    ) {
       this.isTrapped = true;
       this.isDebugging = true;
       return;

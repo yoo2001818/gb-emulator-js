@@ -7,6 +7,7 @@ import { BaseSystem } from './baseSystem';
 import { DMA } from './dma';
 import { GamepadController } from './gamepad';
 import { HDMA } from './hdma';
+import { SpeedController } from './speedController';
 import { SystemType } from './systemType';
 import { SystemTimer } from './timer';
 
@@ -20,6 +21,7 @@ export class BaseEmulator {
   hram: RAM;
   dma: DMA;
   hdma: HDMA;
+  speed: SpeedController;
   cartridge: Cartridge | null;
 
   constructor() {
@@ -32,6 +34,7 @@ export class BaseEmulator {
     this.hram = new RAM(0x80);
     this.dma = new DMA();
     this.hdma = new HDMA();
+    this.speed = new SpeedController();
     this.cartridge = null;
   }
 
@@ -45,6 +48,7 @@ export class BaseEmulator {
       hram: this.hram.serialize(),
       dma: this.dma.serialize(),
       hdma: this.hdma.serialize(),
+      speed: this.speed.serialize(),
       cartridge: this.cartridge!.mbc.serialize(),
     };
   }
@@ -58,6 +62,7 @@ export class BaseEmulator {
     this.hram.deserialize(data.hram);
     this.dma.deserialize(data.dma);
     this.hdma.deserialize(data.hdma);
+    this.speed.deserialize(data.speed);
     this.cartridge!.mbc.deserialize(data.cartridge);
   }
 
@@ -71,10 +76,11 @@ export class BaseEmulator {
     this.gamepad.reset();
     this.dma.reset();
     this.hdma.reset();
+    this.speed.reset();
     if (this.cartridge != null) {
       this.cartridge.reset();
     }
-    
+
     this.wram.register(this.system);
     this.ppu.register(this.system);
     this.apu.register(this.system);
@@ -83,6 +89,7 @@ export class BaseEmulator {
     this.system.ioBus.registerMemory(0x80, 0x7f, 'HRAM', this.hram);
     this.dma.register(this.system);
     this.hdma.register(this.system);
+    this.speed.register(this.system);
     if (this.cartridge != null) {
       this.cartridge.register(this.system);
     }
@@ -95,12 +102,19 @@ export class BaseEmulator {
   }
 
   advanceClocks(ticks: number): void {
+    let clocks = this.system.cpu.clocks - ticks;
     for (let i = 0; i < ticks; i += 1) {
-      this.ppu.advanceClock();
-      this.apu.advanceClock();
+      // Triggered every machine cycles in double speed
       this.timer.advanceClock();
       this.dma.advanceClock();
-      this.hdma.advanceClock();
+      this.speed.advanceClock();
+      // Triggered every twice machine cycles in double speed
+      if (!this.speed.isDoubleSpeed || clocks % 2 === 0) {
+        this.ppu.advanceClock();
+        this.apu.advanceClock();
+        this.hdma.advanceClock();
+      }
+      clocks += 1;
     }
   }
 }

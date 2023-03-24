@@ -25,7 +25,12 @@ export const push =
     cpu.skip(1);
     r.postCallback(cpu);
     if (cpu.isDebugging) {
-      cpu.log('op', `push ${r.name}`, pc, `${r.name}=${getHex16(value)} sp=${getHex16(sp)}`);
+      cpu.log(
+        'op',
+        `push ${r.name}`,
+        pc,
+        `${r.name}=${getHex16(value)} sp=${getHex16(sp)}`
+      );
     }
   };
 
@@ -43,7 +48,12 @@ export const pop =
     cpu.skip(1);
     r.postCallback(cpu);
     if (cpu.isDebugging) {
-      cpu.log('op', `pop ${r.name}`, pc, `${r.name}=${getHex16(value)} sp=${getHex16(sp)}`);
+      cpu.log(
+        'op',
+        `pop ${r.name}`,
+        pc,
+        `${r.name}=${getHex16(value)} sp=${getHex16(sp)}`
+      );
     }
   };
 
@@ -56,7 +66,7 @@ export const add16 =
     cpu.aluSetFlags(
       cpu.getFlag(FLAG.Z),
       false,
-      ((n1 & 0xfff) + (n2 & 0xfff) & 0x1000) !== 0,
+      (((n1 & 0xfff) + (n2 & 0xfff)) & 0x1000) !== 0,
       (result & 0x10000) !== 0
     );
     r1.write(cpu, result & 0xffff);
@@ -65,7 +75,14 @@ export const add16 =
     r2.postCallback(cpu);
     cpu.tick(2);
     if (cpu.isDebugging) {
-      cpu.log('op', `add ${r1.name}, ${r2.name}`, pc, `${r1.name}=${getHex16(result & 0xffff)} (${getHex16(n1)}, ${getHex16(n2)}) ${cpu.getDebugFlags()}`);
+      cpu.log(
+        'op',
+        `add ${r1.name}, ${r2.name}`,
+        pc,
+        `${r1.name}=${getHex16(result & 0xffff)} (${getHex16(n1)}, ${getHex16(
+          n2
+        )}) ${cpu.getDebugFlags()}`
+      );
     }
   };
 
@@ -80,13 +97,18 @@ export const add16_sp_n: OpExec = (cpu, pc) => {
     false,
     false,
     ((n1 ^ n2 ^ (result & 0xffff)) & 0x10) === 0x10,
-    ((n1 ^ n2 ^ (result & 0xFFFF)) & 0x100) === 0x100,
+    ((n1 ^ n2 ^ (result & 0xffff)) & 0x100) === 0x100
   );
   cpu.registers[REGISTER.SP] = result & 0xffff;
   cpu.skip(2);
   cpu.tick(4);
   if (cpu.isDebugging) {
-    cpu.log('op', `add sp, ${n2}`, pc, `sp=${getHex16(result & 0xffff)} ${cpu.getDebugFlags()}`);
+    cpu.log(
+      'op',
+      `add sp, ${n2}`,
+      pc,
+      `sp=${getHex16(result & 0xffff)} ${cpu.getDebugFlags()}`
+    );
   }
 };
 
@@ -135,7 +157,12 @@ export const daa: OpExec = (cpu, pc) => {
   cpu.skip(1);
   cpu.tick(1);
   if (cpu.isDebugging) {
-    cpu.log('op', `daa`, pc, `a=${getHex8(value & 0xff)} ${cpu.getDebugFlags()}`);
+    cpu.log(
+      'op',
+      `daa`,
+      pc,
+      `a=${getHex8(value & 0xff)} ${cpu.getDebugFlags()}`
+    );
   }
 };
 
@@ -146,7 +173,12 @@ export const cpl: OpExec = (cpu, pc) => {
   cpu.skip(1);
   cpu.tick(1);
   if (cpu.isDebugging) {
-    cpu.log('op', `cpl`, pc, `a=${getHex8(result & 0xff)} ${cpu.getDebugFlags()}`);
+    cpu.log(
+      'op',
+      `cpl`,
+      pc,
+      `a=${getHex8(result & 0xff)} ${cpu.getDebugFlags()}`
+    );
   }
 };
 
@@ -178,7 +210,7 @@ export const halt: OpExec = (cpu, pc) => {
 };
 
 export const stop: OpExec = (cpu, pc) => {
-  // TODO: Wait for button press
+  cpu.isStopped = true;
   cpu.isRunning = false;
   cpu.skip(2);
   cpu.tick(1);
