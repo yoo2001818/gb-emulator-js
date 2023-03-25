@@ -94,7 +94,7 @@ export class Emulator {
     if (!this.isRunning) return;
     if (this.emulator.cartridge == null) return;
 
-    const { ppu, timer, apu, cartridge } = this.emulator;
+    const { ppu, timer, apu, cartridge, speed } = this.emulator;
     const { cpu, interrupter } = this.emulator.system;
   
     // Start LCD clock
@@ -107,7 +107,9 @@ export class Emulator {
 
     // Run system until stopped
     // 4.194304MHz -> Around 70224 clocks per each frame (17556 M-clocks)
-    let stopClock = cpu.clocks + this.emulator.ppu.getRemainingClockUntilVblank();
+    let runClocks = this.emulator.ppu.getRemainingClockUntilVblank();
+    if (speed.isDoubleSpeed) runClocks *= 2;
+    let stopClock = cpu.clocks + runClocks;
     if (this.isStepping) {
       stopClock = cpu.clocks + 1;
       this.isRunning = false;
@@ -128,7 +130,8 @@ export class Emulator {
         );
         if (skipClocks === 0) break;
         elapsedClocks = skipClocks;
-        cpu.tick(skipClocks);
+        if (speed.isDoubleSpeed) elapsedClocks *= 2;
+        cpu.tick(elapsedClocks);
       }
     }
     if (this.isStepping) {
