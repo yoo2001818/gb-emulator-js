@@ -10,7 +10,7 @@ export class WRAM {
     this.bank = 1;
     this.ram = new BankedRAM(0x8000, () => false, (addr) => {
       if (addr < 0x1000) return 0;
-      return this.bank * 0x1000;
+      return this.bank * 0x1000 - 0x1000;
     });
   }
 
@@ -24,7 +24,7 @@ export class WRAM {
   }
 
   reset(): void {
-    this.bank = 0;
+    this.bank = 1;
     this.ram.reset();
   }
 
@@ -40,6 +40,7 @@ export class WRAM {
           if (this.bank === 0) {
             this.bank = 1;
           }
+          console.log('Selecting bank', this.bank);
         },
       });
     }
