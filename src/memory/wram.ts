@@ -40,7 +40,6 @@ export class WRAM {
           if (this.bank === 0) {
             this.bank = 1;
           }
-          console.log('Selecting bank', this.bank);
         },
       });
     }

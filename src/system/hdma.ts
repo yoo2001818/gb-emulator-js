@@ -81,7 +81,12 @@ export class HDMA {
           this.length = ((value & 0x7f) + 1) * 0x10;
           if (!this.useHBlank) {
             // Hang the CPU for the necessary time
-            this.system!.cpu.tick(this.length / 2);
+            const isDoubleSpeed = (this.system!.memoryBus.read(0xff4d) & 0x80) !== 0;
+            if (isDoubleSpeed) {
+              this.system!.cpu.tick(this.length);
+            } else {
+              this.system!.cpu.tick(this.length / 2);
+            }
           }
         } else {
           this.isRunning = false;
