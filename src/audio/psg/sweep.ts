@@ -50,19 +50,19 @@ export class SweepPSGModule implements PSGModule {
 
   getNextClocks(clocks: number): number {
     if (this.pace === 0) return clocks;
-    const width = 65536 * this.pace;
+    const width = 32768 * this.pace;
     const remaining = width - this.clock;
     return Math.min(clocks, remaining);
   }
 
   step(clocks: number): void {
-    const width = 65536 * this.pace;
+    const width = 32768 * this.pace;
     this.clock += clocks;
     if (this.pace > 0 && this.clock >= width) {
       this.clock = 0;
       const wavelength = this.config.wavelength;
-      const nextWavelength = wavelength + Math.floor(wavelength / (1 << this.slope) * (this.increasing ? 1 : -1));
-      if (nextWavelength > 0x7ff) {
+      const nextWavelength = wavelength + (wavelength >>> this.slope) * (this.increasing ? 1 : -1);
+      if (nextWavelength >= 0x7ff) {
         this.config.enabled = false;
         this.config.wavelength = 0x7ff;
       } else {
@@ -77,7 +77,7 @@ export class SweepPSGModule implements PSGModule {
       let output = 0x100;
       output |= this.slope & 0x7;
       if (!this.increasing) output |= 0x8;
-      output |= (this.pace & 0xf) << 4;
+      output |= (this.pace & 0x7) << 4;
       return output;
     }
     return 0;
@@ -88,7 +88,7 @@ export class SweepPSGModule implements PSGModule {
       // NR10 - Sweep
       this.slope = value & 0x7;
       this.increasing = (value & 0x8) === 0;
-      this.pace = (value >> 4) & 0xf;
+      this.pace = (value >> 4) & 0x7;
     }
   }
 
