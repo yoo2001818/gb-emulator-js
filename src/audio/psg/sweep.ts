@@ -1,6 +1,7 @@
 import { PSGModule } from "./psg";
 
 const SERIALIZE_FIELDS: (keyof SweepPSGModule)[] = [
+  'initialPace',
   'pace',
   'increasing',
   'slope',
@@ -13,6 +14,7 @@ export interface SquarePSGConfig {
 }
 
 export class SweepPSGModule implements PSGModule {
+  initialPace: number = 0;
   pace: number = 0;
   increasing: boolean = false;
   slope: number = 0;
@@ -24,6 +26,7 @@ export class SweepPSGModule implements PSGModule {
   }
 
   reset(): void {
+    this.initialPace = 0;
     this.pace = 0;
     this.increasing = false;
     this.slope = 0;
@@ -42,6 +45,7 @@ export class SweepPSGModule implements PSGModule {
 
   trigger(): void {
     this.clock = 0;
+    this.pace = this.initialPace;
   }
 
   getDebugState(): string {
@@ -77,7 +81,7 @@ export class SweepPSGModule implements PSGModule {
       let output = 0x100;
       output |= this.slope & 0x7;
       if (!this.increasing) output |= 0x8;
-      output |= (this.pace & 0x7) << 4;
+      output |= (this.initialPace & 0x7) << 4;
       return output;
     }
     return 0;
@@ -88,7 +92,12 @@ export class SweepPSGModule implements PSGModule {
       // NR10 - Sweep
       this.slope = value & 0x7;
       this.increasing = (value & 0x8) === 0;
-      this.pace = (value >> 4) & 0x7;
+      this.initialPace = (value >> 4) & 0x7;
+      if (this.initialPace === 0) {
+        this.pace = 0;
+      } else if (this.pace === 0) {
+        this.pace = this.initialPace;
+      }
     }
   }
 
