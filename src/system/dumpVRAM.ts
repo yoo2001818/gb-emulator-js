@@ -1,4 +1,4 @@
-import { LCD, LCDC } from "../lcd/lcd";
+import { PPU, LCDC } from "../ppu/ppu";
 
 const PALETTE = [
   0xffffffff,
@@ -8,7 +8,7 @@ const PALETTE = [
 ];
 
 // TODO: Refactor this; this is copied from LCD render code
-function getBGTileDataAddress(lcd: LCD, id: number): number {
+function getBGTileDataAddress(lcd: PPU, id: number): number {
   const bgTileSigned = (lcd.lcdc & LCDC.BG_WINDOW_TILE_DATA_SELECT) === 0;
   if (bgTileSigned) {
     // Video RAM starts with 0x8000. Therefore 0x800 here maps to 0x8800.
@@ -18,19 +18,19 @@ function getBGTileDataAddress(lcd: LCD, id: number): number {
   return id * 16;
 }
 
-function getBGTileId(lcd: LCD, x: number, y: number): number {
+function getBGTileId(lcd: PPU, x: number, y: number): number {
   // Again, this is directly read from VRAM.
   const bgMapBase = (lcd.lcdc & LCDC.BG_TILE_MAP_DISPLAY_SELECT) ? 0x1c00 : 0x1800;
   return lcd.vram.bytes[bgMapBase + (32 * y) + x];
 }
 
-function getWindowTileId(lcd: LCD, x: number, y: number): number {
+function getWindowTileId(lcd: PPU, x: number, y: number): number {
   // Again, this is directly read from VRAM.
   const bgMapBase = (lcd.lcdc & LCDC.WINDOW_TILE_MAP_DISPLAY_SELECT) ? 0x1c00 : 0x1800;
   return lcd.vram.bytes[bgMapBase + (32 * y) + x];
 }
 
-function drawTilemap(lcd: LCD, bitmap: Uint8ClampedArray): void {
+function drawTilemap(lcd: PPU, bitmap: Uint8ClampedArray): void {
   // BG
   for (let y = 0; y < 256; y += 1) {
     const vram = lcd.vram.bytes;
@@ -106,7 +106,7 @@ function drawTilemap(lcd: LCD, bitmap: Uint8ClampedArray): void {
 
 }
 
-export function dumpVRAM(lcd: LCD): void {
+export function dumpVRAM(lcd: PPU): void {
   let dumpEl = document.getElementById('dump-canvas');
   if (dumpEl == null) {
     dumpEl = document.createElement('canvas');

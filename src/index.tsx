@@ -1,5 +1,5 @@
 import './index.css';
-import { LCD_HEIGHT, LCD_WIDTH } from './lcd/lcd';
+import { LCD_HEIGHT, LCD_WIDTH } from './ppu/ppu';
 import { dumpVRAM } from './system/dumpVRAM';
 import { Emulator } from './system/emulator';
 import { BUTTON } from './system/gamepad';
@@ -17,7 +17,7 @@ const CONTROLS_MAP: Record<string, number | undefined> = {
 };
 
 async function loadROM() {
-  const res = await fetch('/pokemon_gold.gb');
+  const res = await fetch('/pokemon_red.gb');
   const array_buffer = await res.arrayBuffer();
   const buffer = new Uint8Array(array_buffer);
   return buffer;

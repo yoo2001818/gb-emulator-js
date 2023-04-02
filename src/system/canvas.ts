@@ -1,4 +1,4 @@
-import { LCD, LCD_HEIGHT, LCD_WIDTH } from "../lcd/lcd";
+import { PPU, LCD_HEIGHT, LCD_WIDTH } from "../ppu/ppu";
 
 const PALETTE = [
   0xffffffff,
@@ -19,7 +19,7 @@ function convertColor(value: number): number {
   return (red << 24) | (green << 16) | (blue << 8) | 0xff;
 }
 
-export function drawCanvas(lcd: LCD, canvas: CanvasRenderingContext2D): void {
+export function drawCanvas(lcd: PPU, canvas: CanvasRenderingContext2D): void {
   const imgData = canvas.createImageData(LCD_WIDTH, LCD_HEIGHT);
   const data = imgData.data;
   for (let y = 0; y < LCD_HEIGHT; y += 1) {

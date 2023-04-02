@@ -1,6 +1,6 @@
-import { APU } from '../audio/apu';
+import { APU } from '../apu/apu';
 import { Cartridge } from '../cartridge/cartridge';
-import { LCD } from '../lcd/lcd';
+import { PPU } from '../ppu/ppu';
 import { RAM } from '../memory/ram';
 import { WRAM } from '../memory/wram';
 import { BaseSystem } from './baseSystem';
@@ -13,7 +13,7 @@ import { SystemTimer } from './timer';
 
 export class BaseEmulator {
   system: BaseSystem;
-  ppu: LCD;
+  ppu: PPU;
   apu: APU;
   timer: SystemTimer;
   gamepad: GamepadController;
@@ -26,7 +26,7 @@ export class BaseEmulator {
 
   constructor() {
     this.system = new BaseSystem();
-    this.ppu = new LCD(this.system.interrupter);
+    this.ppu = new PPU(this.system.interrupter);
     this.apu = new APU();
     this.timer = new SystemTimer(this.system.interrupter);
     this.gamepad = new GamepadController();

@@ -1,6 +1,6 @@
-import { LCD, LCDC, LCD_HEIGHT, LCD_WIDTH } from "./lcd";
+import { PPU, LCDC, LCD_HEIGHT, LCD_WIDTH } from "./ppu";
 
-function getBGTileDataAddress(lcd: LCD, id: number, bank: number = 0): number {
+function getBGTileDataAddress(lcd: PPU, id: number, bank: number = 0): number {
   const bgTileSigned = (lcd.lcdc & LCDC.BG_WINDOW_TILE_DATA_SELECT) === 0;
   const base = bank * 0x2000;
   if (bgTileSigned) {
@@ -11,38 +11,38 @@ function getBGTileDataAddress(lcd: LCD, id: number, bank: number = 0): number {
   return base + id * 16;
 }
 
-function getBGTileId(lcd: LCD, x: number, y: number): number {
+function getBGTileId(lcd: PPU, x: number, y: number): number {
   // Again, this is directly read from VRAM.
   const bgMapBase = (lcd.lcdc & LCDC.BG_TILE_MAP_DISPLAY_SELECT) ? 0x1c00 : 0x1800;
   return lcd.vram.bytes[bgMapBase + (32 * y) + x];
 }
 
-function getBGTileAttributes(lcd: LCD, x: number, y: number): number {
+function getBGTileAttributes(lcd: PPU, x: number, y: number): number {
   const bgMapBase = (lcd.lcdc & LCDC.BG_TILE_MAP_DISPLAY_SELECT) ? 0x3c00 : 0x3800;
   return lcd.vram.bytes[bgMapBase + (32 * y) + x];
 }
 
-function getWindowTileId(lcd: LCD, x: number, y: number): number {
+function getWindowTileId(lcd: PPU, x: number, y: number): number {
   const bgMapBase = (lcd.lcdc & LCDC.WINDOW_TILE_MAP_DISPLAY_SELECT) ? 0x1c00 : 0x1800;
   return lcd.vram.bytes[bgMapBase + (32 * y) + x];
 }
 
-function getWindowTileAttributes(lcd: LCD, x: number, y: number): number {
+function getWindowTileAttributes(lcd: PPU, x: number, y: number): number {
   const bgMapBase = (lcd.lcdc & LCDC.WINDOW_TILE_MAP_DISPLAY_SELECT) ? 0x3c00 : 0x3800;
   return lcd.vram.bytes[bgMapBase + (32 * y) + x];
 }
 
-function getBGPaletteColor(lcd: LCD, paletteId: number, colorId: number): number {
+function getBGPaletteColor(lcd: PPU, paletteId: number, colorId: number): number {
   const addr = paletteId * 8 + colorId * 2;
   return lcd.bgPalette[addr] | (lcd.bgPalette[addr + 1] << 8);
 }
 
-function getOBJPaletteColor(lcd: LCD, paletteId: number, colorId: number): number {
+function getOBJPaletteColor(lcd: PPU, paletteId: number, colorId: number): number {
   const addr = paletteId * 8 + colorId * 2;
   return lcd.objPalette[addr] | (lcd.objPalette[addr + 1] << 8);
 }
 
-function renderLineBG(lcd: LCD, line: number): void {
+function renderLineBG(lcd: PPU, line: number): void {
   const isCGB = lcd.isCGB;
   const lcdcPriority = (lcd.lcdc & LCDC.BG_WINDOW_DISPLAY) === 0;
   // GB: If BG_WINDOW_DISPLAY is 0, don't render BG and window
@@ -98,7 +98,7 @@ function renderLineBG(lcd: LCD, line: number): void {
   } while (currentX < LCD_WIDTH);
 }
 
-function renderLineWindow(lcd: LCD, line: number): void {
+function renderLineWindow(lcd: PPU, line: number): void {
   const isCGB = lcd.isCGB;
   if (!isCGB && (lcd.lcdc & LCDC.BG_WINDOW_DISPLAY) === 0) {
     return;
@@ -161,7 +161,7 @@ const ATTRIBUTE = {
   BG_WINDOW_OVER_OBJ: 128,
 };
 
-export function renderLineSprite(lcd: LCD, line: number): void {
+export function renderLineSprite(lcd: PPU, line: number): void {
   if ((lcd.lcdc & LCDC.OBJ_DISPLAY) === 0) return;
   const lcdcPriority = (lcd.lcdc & LCDC.BG_WINDOW_DISPLAY) !== 0;
   const isCGB = lcd.isCGB;
@@ -221,7 +221,7 @@ export function renderLineSprite(lcd: LCD, line: number): void {
 }
 
 export function renderLine(
-  lcd: LCD,
+  lcd: PPU,
   line: number,
 ): void {
   if (line >= LCD_HEIGHT) return;

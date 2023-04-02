@@ -56,7 +56,7 @@ const LINE_CLOCK_VBLANK = 456; // V-Blank (each scanline)
 export const LCD_WIDTH = 160;
 export const LCD_HEIGHT = 144;
 
-const SERIALIZE_FIELDS: (keyof LCD)[] = [
+const SERIALIZE_FIELDS: (keyof PPU)[] = [
   'lcdc',
   'stat',
   'scy',
@@ -76,7 +76,7 @@ const SERIALIZE_FIELDS: (keyof LCD)[] = [
   'ocps',
 ];
 
-export class LCD {
+export class PPU {
   interrupter!: Interrupter;
   lcdc: number = 0;
   stat: number = 0;
