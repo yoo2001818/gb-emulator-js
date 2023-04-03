@@ -170,13 +170,27 @@ export function renderLineSprite(lcd: PPU, line: number): void {
   const vram = lcd.vram.bytes;
   const spriteHeight = (lcd.lcdc & LCDC.OBJ_SIZE) ? 16 : 8;
   const fbAddr = line * LCD_WIDTH;
+  // Scan for candidates
+  const drawIds: number[] = [];
   for (let i = 0; i < 160; i += 4) {
     const spriteY = oam[i] - 16;
     let py = line - spriteY;
     if (py < 0 || py >= spriteHeight) continue;
     const spriteX = oam[i + 1] - 8;
-    let tileId = oam[i + 2];
-    const attributes = oam[i + 3];
+    if (spriteX <= -8 || spriteX > LCD_WIDTH) continue;
+    drawIds.push(i);
+  }
+  
+  let drawCount = 0;
+  for (let i = drawIds.length - 1; i >= 0; i -= 1) {
+    if (drawCount >= 10) continue;
+    const addr = drawIds[i];
+    const spriteY = oam[addr] - 16;
+    let py = line - spriteY;
+    if (py < 0 || py >= spriteHeight) continue;
+    const spriteX = oam[addr + 1] - 8;
+    let tileId = oam[addr + 2];
+    const attributes = oam[addr + 3];
 
     const obp = (attributes & ATTRIBUTE.PALETTE) ? lcd.obp1 : lcd.obp0;
     const flipX = (attributes & ATTRIBUTE.X_FLIP) !== 0;
