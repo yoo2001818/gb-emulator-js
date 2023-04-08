@@ -10,6 +10,7 @@ export class CPU {
   onTick: (clocks: number) => void;
   isRunning = false;
   isStopped = false;
+  isPaused = false;
   isInterruptsEnabled = false;
   isInterruptsEnabledNext = false;
 
@@ -34,6 +35,7 @@ export class CPU {
     this.registers = registers.slice();
     this.clocks = 0;
     this.isStopped = false;
+    this.isPaused = false;
     this.isInterruptsEnabled = false;
     this.isInterruptsEnabledNext = false;
     this.isDebugging = false;
@@ -167,6 +169,11 @@ export class CPU {
   }
 
   step(): void {
+    if (this.isPaused) {
+      // Do nothing and pass the time
+      this.tick(1);
+      return;
+    }
     this.isInterruptsEnabled = this.isInterruptsEnabledNext;
     const pc = this.registers[REGISTER.PC];
     if (

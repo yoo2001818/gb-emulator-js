@@ -67,6 +67,7 @@ export class HDMA {
     });
     ioBus.register(0x55, 'HDMA5', {
       read: () => {
+        console.log('Read HDMA');
         const remaining = this.length - this.pos;
         if (remaining === 0) return 0xff;
         let output = (Math.floor(remaining / 0x10)) & 0x7f;
@@ -79,6 +80,8 @@ export class HDMA {
           this.useHBlank = (value & 0x80) !== 0;
           this.pos = 0;
           this.length = ((value & 0x7f) + 1) * 0x10;
+          const dest = (this.dest & 0x1ff0) + 0x8000;
+          console.log('HDMA', this.useHBlank ? 'hblank' : 'sync', this.length.toString(16), this.src.toString(16), dest.toString(16), value.toString(16));
           if (!this.useHBlank) {
             // Hang the CPU for the necessary time
             const isDoubleSpeed = (this.system!.memoryBus.read(0xff4d) & 0x80) !== 0;
@@ -90,6 +93,7 @@ export class HDMA {
           }
         } else {
           this.isRunning = false;
+          this.system!.cpu.isPaused = false;
         }
       },
     });
@@ -101,7 +105,12 @@ export class HDMA {
     // FIXME: Stall the CPU when we're copying HDMA data in general-purpose mode
     if (this.useHBlank) {
       const stat = this.system!.memoryBus.read(0xff41);
-      if ((stat & 0x7) !== 0) return;
+      if ((stat & 0x7) !== 0) {
+        this.system!.cpu.isPaused = false;
+        return;
+      } else {
+        this.system!.cpu.isPaused = true;
+      }
     }
     const memory = this.system!.cpu.memory;
     const { src, dest, length } = this;
@@ -114,6 +123,8 @@ export class HDMA {
       memory.write(realDest + pos, value);
       this.pos += 1;
       if (this.pos === length) {
+        console.log('HDMA finished');
+        this.system!.cpu.isPaused = false;
         this.isRunning = false;
         this.pos = 0;
         this.length = 0;
