@@ -1,6 +1,7 @@
 import { BankedRAM } from '../memory/bankedRAM';
 import { LockableRAM } from '../memory/lockableRAM';
 import { createAccessor, deserializeBytes, serializeBytes } from '../memory/utils';
+import { BaseEmulator } from '../system/baseEmulator';
 import { BaseSystem } from '../system/baseSystem';
 import { Interrupter, INTERRUPT_TYPE } from '../system/interrupter';
 import { SystemType } from '../system/systemType';
@@ -77,6 +78,7 @@ const SERIALIZE_FIELDS: (keyof PPU)[] = [
 ];
 
 export class PPU {
+  emulator: BaseEmulator | null = null;
   interrupter!: Interrupter;
   lcdc: number = 0;
   stat: number = 0;
@@ -143,8 +145,9 @@ export class PPU {
     this.interrupter = interrupter;
   }
 
-  register(system: BaseSystem): void {
+  register(system: BaseSystem, emulator: BaseEmulator): void {
     const { ioBus, memoryBus } = system;
+    this.emulator = emulator;
     this.isCGB = system.type === SystemType.CGB;
     // VRAM and OAM
     memoryBus.register(0x80, 0x9f, this.vram);
@@ -287,6 +290,7 @@ export class PPU {
       // H-blank interrupt requested
       this.interrupter.queueInterrupt(INTERRUPT_TYPE.LCDC);
     }
+    this.emulator!.hdma.enterHBlank();
   }
 
   /**

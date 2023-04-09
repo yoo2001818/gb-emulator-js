@@ -82,13 +82,13 @@ export class BaseEmulator {
     }
 
     this.wram.register(this.system);
-    this.ppu.register(this.system);
+    this.ppu.register(this.system, this);
     this.apu.register(this.system);
     this.timer.register(this.system);
     this.gamepad.register(this.system);
     this.system.ioBus.registerMemory(0x80, 0x7f, 'HRAM', this.hram);
     this.dma.register(this.system);
-    this.hdma.register(this.system);
+    this.hdma.register(this.system, this);
     this.speed.register(this.system);
     if (this.cartridge != null) {
       this.cartridge.register(this.system);
