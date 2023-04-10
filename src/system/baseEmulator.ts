@@ -10,6 +10,7 @@ import { HDMA } from './hdma';
 import { SpeedController } from './speedController';
 import { SystemType } from './systemType';
 import { SystemTimer } from './timer';
+import { SerialController } from './serial';
 
 export class BaseEmulator {
   system: BaseSystem;
@@ -22,6 +23,7 @@ export class BaseEmulator {
   dma: DMA;
   hdma: HDMA;
   speed: SpeedController;
+  serial: SerialController;
   cartridge: Cartridge | null;
 
   constructor() {
@@ -35,6 +37,7 @@ export class BaseEmulator {
     this.dma = new DMA();
     this.hdma = new HDMA();
     this.speed = new SpeedController();
+    this.serial = new SerialController();
     this.cartridge = null;
   }
 
@@ -49,6 +52,7 @@ export class BaseEmulator {
       dma: this.dma.serialize(),
       hdma: this.hdma.serialize(),
       speed: this.speed.serialize(),
+      serial: this.serial.serialize(),
       cartridge: this.cartridge!.mbc.serialize(),
     };
   }
@@ -63,6 +67,7 @@ export class BaseEmulator {
     this.dma.deserialize(data.dma);
     this.hdma.deserialize(data.hdma);
     this.speed.deserialize(data.speed);
+    this.serial.deserialize(data.serial);
     this.cartridge!.mbc.deserialize(data.cartridge);
   }
 
@@ -77,6 +82,7 @@ export class BaseEmulator {
     this.dma.reset();
     this.hdma.reset();
     this.speed.reset();
+    this.serial.reset();
     if (this.cartridge != null) {
       this.cartridge.reset();
     }
@@ -90,6 +96,7 @@ export class BaseEmulator {
     this.dma.register(this.system);
     this.hdma.register(this.system, this);
     this.speed.register(this.system);
+    this.serial.register(this.system);
     if (this.cartridge != null) {
       this.cartridge.register(this.system);
     }
