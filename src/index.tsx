@@ -27,14 +27,9 @@ const FRAME_RATE = 1000 / 60;
 
 async function start() {
   let prevTime = performance.now();
-  const canvas = document.createElement('canvas');
-  document.body.appendChild(canvas);
+  const canvas = document.querySelector('#canvas') as HTMLCanvasElement;
   canvas.width = LCD_WIDTH;
   canvas.height = LCD_HEIGHT;
-  canvas.style.width = `${LCD_WIDTH * 4}px`;
-  canvas.style.height = `${LCD_HEIGHT * 4}px`;
-  canvas.style.imageRendering = 'pixelated';
-  canvas.style.border = '1px solid #000';
   const emulator = new Emulator(canvas);
   const rom = await loadROM();
   await emulator.load(rom);
@@ -42,7 +37,7 @@ async function start() {
   emulator.start();
 
   let storedState: any;
-  
+
   function update() {
     const delta = performance.now() - prevTime;
     const runFrames = Math.min(10, Math.floor(delta / FRAME_RATE));
@@ -120,7 +115,10 @@ async function start() {
       }
       case '4': {
         if (storedState != null) {
-          downloadFile(emulator.emulator.cartridge!.info.title + '.state', JSON.stringify(storedState));
+          downloadFile(
+            emulator.emulator.cartridge!.info.title + '.state',
+            JSON.stringify(storedState)
+          );
         }
         break;
       }
@@ -177,10 +175,10 @@ async function start() {
       }
     }
   });
-  
+
   window.addEventListener('click', async () => {
     emulator.emulator.apu.setup();
-  })
+  });
 }
 
 start();

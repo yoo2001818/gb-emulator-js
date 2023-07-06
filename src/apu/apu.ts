@@ -57,7 +57,7 @@ export class APU implements Memory {
   async setup(): Promise<void> {
     if (this.audioContext != null) return;
     this.audioContext = new AudioContext({ sampleRate: SAMPLE_RATE });
-    await this.audioContext.audioWorklet.addModule('/audioWorklet.js');
+    await this.audioContext.audioWorklet.addModule('./audioWorklet.js');
     this.audioWorkletNode = new AudioWorkletNode(
       this.audioContext!,
       'gb-passthrough',
@@ -87,7 +87,7 @@ export class APU implements Memory {
     const { ioBus } = system;
     ioBus.registerMemory(0x10, 0x30, 'APU', this);
   }
-  
+
   serialize(): any {
     const output: any = {};
     output.waveTable = this.waveTable.serialize();
