@@ -223,9 +223,6 @@ export class APU implements Memory {
     output.push('Wave: ');
     for (let i = 0; i < 0x10; i += 1) {
       output.push(this.waveTable.bytes[i].toString(16).padStart(2, '0'));
-      if (i % 0x10 === 0xf) {
-        output.push('\n');
-      }
     }
     return output.join('');
   }

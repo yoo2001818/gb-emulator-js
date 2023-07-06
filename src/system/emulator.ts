@@ -16,7 +16,7 @@ export class Emulator {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
 
-  debugTextElem: HTMLDivElement;
+  debugTextElem: HTMLDivElement | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.emulator = new BaseEmulator();
@@ -25,9 +25,6 @@ export class Emulator {
     this.sramSaveTimer = 0;
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
-    this.debugTextElem = document.createElement('div');
-    document.body.appendChild(this.debugTextElem);
-    this.debugTextElem.style.fontFamily = 'monospace';
   }
 
   async load(rom: Uint8Array) {
@@ -83,7 +80,7 @@ export class Emulator {
 
   readStack(nBytes: number): string {
     const buffer = [];
-    const sp = this.emulator.system.cpu.registers[REGISTER.SP]; 
+    const sp = this.emulator.system.cpu.registers[REGISTER.SP];
     for (let i = 0; i < nBytes; i += 1) {
       buffer.push(this.emulator.system.cpu.memory.read(sp + i).toString(16).padStart(2, '00'));
     }
@@ -96,7 +93,7 @@ export class Emulator {
 
     const { ppu, timer, apu, cartridge, speed } = this.emulator;
     const { cpu, interrupter } = this.emulator.system;
-  
+
     // Start LCD clock
     if (this.isStepping) {
       cpu.isDebugging = true;
@@ -144,16 +141,25 @@ export class Emulator {
       }
       cpu.debugLogs = [];
     }
-    this.debugTextElem.innerText = [
-      `CLK: ${cpu.clocks}`,
-      cpu.getDebugState(),
-      interrupter.getDebugState(),
-      ppu.getDebugState(),
-      timer.getDebugState(),
-      cartridge.mbc.getDebugState(),
-      `Stack: ${this.readStack(20)}`,
-      apu.getDebugState(),
-    ].join('\n');
+    if (this.debugTextElem != null) {
+      this.debugTextElem.innerText = [
+        '--------- CPU',
+        `CLK: ${cpu.clocks}`,
+        cpu.getDebugState(),
+        interrupter.getDebugState(),
+        '--------- PPU',
+        ppu.getDebugState(),
+        '--------- TIMER',
+        timer.getDebugState(),
+        '--------- CART',
+        `Cartridge: ${cartridge.info.title}`,
+        cartridge.mbc.getDebugState(),
+        '--------- APU',
+        apu.getDebugState(),
+        '--------- STACK',
+        `Stack: ${this.readStack(20)}`,
+      ].join('\n');
+    }
     // this.isRunning = false;
 
     // Render the screen, sound, etc

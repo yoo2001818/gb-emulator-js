@@ -40,3 +40,16 @@ code {
 .controls-row {
   margin-top: 5px;
 }
+
+#debug-stats-txt {
+  font-family: monospace;
+  margin-top: 10px;
+}
+
+.description {
+  margin-top: 10px;
+}
+
+.description p {
+  margin: 0;
+}

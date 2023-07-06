@@ -13,27 +13,34 @@
       </div>
       <div class="controls">
         <div class="controls-row">
-          <button type="button" id="open-rom">Open ROM</button>
-          <button type="button" id="open-sav">Open SAV</button>
-          <button type="button" id="download-sav">Download SAV</button>
+          <button type="button" id="open">Open...</button>
         </div>
         <div class="controls-row">
           <button type="button" id="play">Play/Pause</button>
-          <button type="button" id="reset">Reset</button>
           <button type="button" id="step-frame">Step Frame</button>
-          <button type="button" id="step-clock">Step Clock</button>
         </div>
         <div class="controls-row">
-          <button type="button" id="load-state">Load State</button>
-          <button type="button" id="save-state">Save State</button>
-          <button type="button" id="open-state">Open State</button>
           <button type="button" id="download-state">Download State</button>
+          <button type="button" id="download-sav">Download Save</button>
         </div>
         <div class="controls-row">
-          <button type="button" id="debug-stats">Debug Stats</button>
+          <button type="button" id="toggle-debug-stats">Debug Stats</button>
           <button type="button" id="dump-vram">Dump VRAM</button>
+          <button type="button" id="reset">Reset</button>
         </div>
       </div>
+      <div id="debug-stats-txt"></div>
+      <div class="description">
+        <p>B: Z</p>
+        <p>A: X</p>
+        <p>Start: Enter</p>
+        <p>Select: Backspace</p>
+        <p>D-pad: Arrow key</p>
+        <p>Pause: Space</p>
+        <p>Save state: 1</p>
+        <p>Load state: 2</p>
+      </div>
+      <ul id="romlist"></ul>
     </div>
   </body>
 </html>
