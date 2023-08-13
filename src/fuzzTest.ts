@@ -1,6 +1,9 @@
 import { CPU } from './cpu/cpu';
 import crypto from 'crypto';
+import { spawn } from 'child_process';
 import { Memory } from './memory/types';
+import path from 'path';
+import { createInterface } from 'readline';
 
 function formatResultData(input: Uint8Array): string[] {
   const output: string[] = [];
@@ -74,14 +77,29 @@ function testImpl(input: Uint8Array): Uint8Array {
   return output;
 }
 
-function runTest(): void {
+async function runTest(targetPath: string): Promise<void> {
+  const child = spawn(targetPath);
+  const rl = createInterface(child.stdout, undefined, undefined, false);
   while (true) {
     const input = crypto.randomBytes(16);
     console.log(input.toString('hex'));
-    const output = testImpl(input);
-    console.log(formatResultData(output).join('\n'));
-    console.log(Buffer.from(output).toString('hex'));
+    child.stdin.write(input.toString('hex') + '\n');
+
+    const expected = testImpl(input);
+    console.log(Buffer.from(expected).toString('hex'));
+
+    const received = await new Promise<Buffer>((resolve) => {
+      rl.once('line', (line) => {
+        resolve(Buffer.from(line, 'hex'));
+      });
+    });
+    console.log(received.toString('hex'));
+
+    console.log(formatResultData(expected).join('\n'));
   }
 }
 
-runTest();
+const targetName = process.argv[2];
+if (targetName) {
+  runTest(path.resolve(process.cwd(), targetName));
+}
