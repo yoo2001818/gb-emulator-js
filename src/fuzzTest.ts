@@ -29,8 +29,8 @@ function formatResultData(input: Uint8Array): string[] {
   return output;
 }
 
-function testImpl(input: Uint8Array): Uint8Array {
-  const output = new Uint8Array(40);
+function testImpl(input: Uint8Array): { output: Buffer, line: string } {
+  const output = Buffer.alloc(40);
   let readPos = 12;
   let writePos = 12;
   const memory: Memory = {
@@ -71,32 +71,46 @@ function testImpl(input: Uint8Array): Uint8Array {
   output[10] = cpu.registers[9] & 0xff;
   output[11] = (cpu.registers[9] >>> 8) & 0xff;
   const debugLine = cpu.debugLogs[0];
+  let line = '';
   if (debugLine != null) {
-    console.log(debugLine.data, debugLine.comment);
+    line = `${debugLine.data} ${debugLine.comment}`;
   }
-  return output;
+  return { output, line };
 }
 
 async function runTest(targetPath: string): Promise<void> {
   const child = spawn(targetPath);
   const rl = createInterface(child.stdout, undefined, undefined, false);
+  let count = 0;
   while (true) {
     const input = crypto.randomBytes(16);
-    console.log(input.toString('hex'));
     child.stdin.write(input.toString('hex') + '\n');
 
-    const expected = testImpl(input);
-    console.log(Buffer.from(expected).toString('hex'));
-
+    const { output: expected, line: expectedLine } = testImpl(input);
     const received = await new Promise<Buffer>((resolve) => {
       rl.once('line', (line) => {
         resolve(Buffer.from(line, 'hex'));
       });
     });
-    console.log(received.toString('hex'));
 
-    console.log(formatResultData(expected).join('\n'));
+    if (!expected.equals(received)) {
+      console.log(`Failed ${count} ===========`);
+      console.log('Input:', input.toString('hex'));
+      console.log('Expected:', expected.toString('hex'));
+      console.log('Received:', received.toString('hex'));
+      console.log('Instruction =========');
+      console.log(expectedLine);
+      console.log('Expected Breakdown ==========');
+      console.log(formatResultData(expected).join('\n'));
+      console.log('Received Breakdown ==========');
+      console.log(formatResultData(received).join('\n'));
+      break;
+    } else {
+      console.log(`Pass ${count}`);
+    }
+    count += 1;
   }
+  child.kill('SIGKILL');
 }
 
 const targetName = process.argv[2];
