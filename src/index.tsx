@@ -241,21 +241,10 @@ function start() {
     ACTIONS.open(emulator);
   });
 
+  /*
   const romListEl = document.querySelector('#romlist') as HTMLUListElement;
   [
-    ['drmario.gb', 'Dr. Mario'],
-    ['marioland.gb', 'Super Mario Land'],
-    ['mariogolf.gb', 'Mario Golf'],
-    ['pokemon_red.gb', 'Pokemon Red'],
-    ['pokemon_blue.gb', 'Pokemon Blue'],
-    ['pokemon_yellow.gb', 'Pokemon Yellow'],
-    ['pokemon_gold.gb', 'Pokemon Gold'],
-    ['pokemon_silver.gb', 'Pokemon Silver'],
-    ['pokemon_gold_kor.gb', 'Pokemon Gold (Korean)'],
-    ['pokemon_crystal.gb', 'Pokemon Crystal'],
     ['tetris.gb', 'Tetris'],
-    ['zelda.gb', 'Legend of Zelda'],
-    ['kirby.gb', "Kirby's Dream Land"],
   ].forEach(([romPath, romName]) => {
     const romEl = document.createElement('li');
     const buttonEl = document.createElement('a');
@@ -282,6 +271,7 @@ function start() {
     emulator.reboot();
     emulator.start();
   })();
+  */
 }
 
 start();
