@@ -9,30 +9,35 @@ function formatResultData(input: Uint8Array): string[] {
   const output: string[] = [];
   output.push(
     `PC: ${(input[8] | (input[9] << 8)).toString(16).padStart(4, '0')} ` +
-    `SP: ${(input[10] | (input[11] << 8)).toString(16).padStart(4, '0')} ` +
-    `A: ${(input[0]).toString(16).padStart(2, '0')} ` +
-    `B: ${(input[1]).toString(16).padStart(2, '0')} ` +
-    `C: ${(input[2]).toString(16).padStart(2, '0')} ` +
-    `D: ${(input[3]).toString(16).padStart(2, '0')} ` +
-    `E: ${(input[4]).toString(16).padStart(2, '0')} ` +
-    `F: ${(input[5]).toString(16).padStart(2, '0')} ` +
-    `H: ${(input[6]).toString(16).padStart(2, '0')} ` +
-    `L: ${(input[7]).toString(16).padStart(2, '0')}`
+      `SP: ${(input[10] | (input[11] << 8)).toString(16).padStart(4, '0')} ` +
+      `A: ${input[0].toString(16).padStart(2, '0')} ` +
+      `B: ${input[1].toString(16).padStart(2, '0')} ` +
+      `C: ${input[2].toString(16).padStart(2, '0')} ` +
+      `D: ${input[3].toString(16).padStart(2, '0')} ` +
+      `E: ${input[4].toString(16).padStart(2, '0')} ` +
+      `F: ${input[5].toString(16).padStart(2, '0')} ` +
+      `H: ${input[6].toString(16).padStart(2, '0')} ` +
+      `L: ${input[7].toString(16).padStart(2, '0')} ` +
+      `Cycles: ${input[12]}`
   );
-  for (let i = 12; i < input.length - 3; i += 4) {
+  for (let i = 16; i < input.length - 3; i += 4) {
     const addr = input[i] | (input[i + 1] << 8);
     const rw = input[i + 2];
     const value = input[i + 3];
     if (rw === 0) break;
-    output.push(`${rw === 1 ? 'R' : 'W'} $${addr.toString(16).padStart(4, '0')}: ${value.toString(16).padStart(2, '0')}`);
+    output.push(
+      `${rw === 1 ? 'R' : 'W'} $${addr.toString(16).padStart(4, '0')}: ${value
+        .toString(16)
+        .padStart(2, '0')}`
+    );
   }
   return output;
 }
 
-function testImpl(input: Uint8Array): { output: Buffer, line: string } {
+function testImpl(input: Uint8Array): { output: Buffer; line: string } {
   const output = Buffer.alloc(40);
   let readPos = 12;
-  let writePos = 12;
+  let writePos = 16;
   const memory: Memory = {
     read: (addr) => {
       const readValue = input[readPos];
@@ -70,6 +75,7 @@ function testImpl(input: Uint8Array): { output: Buffer, line: string } {
   output[9] = (cpu.registers[8] >>> 8) & 0xff;
   output[10] = cpu.registers[9] & 0xff;
   output[11] = (cpu.registers[9] >>> 8) & 0xff;
+  output[12] = cpu.clocks;
   const debugLine = cpu.debugLogs[0];
   let line = '';
   if (debugLine != null) {
